@@ -216,7 +216,7 @@ function showVerdict(v) {
   const risk = v.level === 'DANGEROUS' ? 'danger' : v.level === 'SUSPICIOUS' ? 'warn' : 'clean';
   document.body.dataset.risk = risk;
   if (risk === 'danger') { $('riskbar').hidden = false; $('riskText').textContent = 'Dangerous link: do not open it on your device.'; }
-  $('vlevel').textContent = {danger: 'Dangerous link', warn: 'Suspicious link', clean: 'No threat found'}[risk];
+  $('vlevel').textContent = v.level === 'LOOKS SAFE' ? 'Looks safe' : {danger: 'Dangerous link', warn: 'Suspicious link', clean: 'No threat found'}[risk];
   $('ringNum').textContent = v.score;
   $('ringFg').style.strokeDashoffset = 188.5 * (1 - v.score / 100);
   $('vmeta').innerHTML = `<span>${v.seconds}s · ${v.model_calls} model calls</span><span>summary by ${esc(v.summary_by)}</span><span>score by code</span>`;
@@ -224,7 +224,7 @@ function showVerdict(v) {
   $('vsum').textContent = '';
   typeInto($('vsum'), v.summary);
   $('evidence').innerHTML = v.evidence.map(e => `<li>${esc(e.text)}<span class="w">+${e.weight}</span>${e.quote ? `<q>${esc(e.quote)}</q>` : ''}</li>`).join('')
-    || '<li class="small">Nothing harmful was seen.</li>';
+    + (risk === 'clean' ? (v.checks || []).map(c => `<li class="pass">${esc(c)}</li>`).join('') : '');
   $('loot').innerHTML = (v.attacker_got || []).map(g => `<div class="lootbox"><b>${esc(g.host)}</b> received your fake ${esc(g.data.map(d => (LABELS[d] || d).toLowerCase()).join(', '))}</div>`).join('')
     || '<p class="small">Nothing was sent to another server.</p>';
   $('vgrid').classList.remove('hidden'); $('decide').classList.remove('hidden');
