@@ -15,7 +15,10 @@ from .config import DEMO_SUFFIX, RUNS, env
 from .guard import Budget, BudgetExceeded
 from .sandbox import Sandbox, SandboxError
 from .urlcheck import domain_signals
-from .verdict import Evidence, template_summary
+from concurrent.futures import ThreadPoolExecutor
+
+from . import store
+from .verdict import Evidence, cloaking, template_summary
 
 MAX_ACTIONS = 6
 SUBMIT_WORDS = re.compile(r"sign|log ?in|continue|verify|confirm|next|submit|unlock|pay|claim|download|view|open|start", re.I)
@@ -130,6 +133,19 @@ def model_summary(budget: Budget, v: dict) -> str | None:
     return text
 
 
+IPHONE_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) "
+             "Version/17.5 Mobile/15E148 Safari/604.1")
+# The visitor swarm: the same link, opened by different "people". A page that treats them differently is cloaking.
+PERSONAS = [
+    {"id": "careless", "name": "Careless employee", "device": "Laptop · Chrome", "ua": None, "mobile": False, "locale": "en-US",
+     "viewport": {"width": 1280, "height": 800}, "lead": True},
+    {"id": "phone", "name": "Phone user", "device": "iPhone · Safari", "ua": IPHONE_UA, "mobile": True, "locale": "en-GB",
+     "viewport": {"width": 390, "height": 844}},
+    {"id": "bot", "name": "Security bot", "device": "Link scanner", "ua": "Mozilla/5.0 (compatible; LinkScanner/1.0; +https://example.invalid/bot)",
+     "mobile": False, "locale": "en-US", "viewport": {"width": 1280, "height": 800}},
+]
+
+
 def describe(state: dict) -> str:
     """Plain-code description of what the sandbox sees (shown live as the agent's observation)."""
     p = state.get("page") or {}
@@ -147,43 +163,29 @@ def describe(state: dict) -> str:
     return " ".join(parts)
 
 
-def run_scan(scan_id: str, url: str, emit, budget: Budget) -> dict:
-    started = time.time()
-    out_dir = RUNS / scan_id
-    out_dir.mkdir(parents=True, exist_ok=True)
-    canary = make_canary()
-    signals = domain_signals(url)
-    ev = Evidence(url, signals)
-    use_model = llm.available()
-    emit({"type": "start", "url": url, "canary": canary, "planner": llm.model_name()})
-    if signals:
-        emit({"type": "signals", "items": signals})
-
-    sb = Sandbox()
-    history, tried = [], set()
-    frames = [0]
-
-    def live_frame(b64: str):
-        """Save a live frame from the sandbox and tell the browser to show it."""
-        frames[0] += 1
-        n = frames[0]
-        (out_dir / f"frame-{n}.jpg").write_bytes(base64.b64decode(b64))
-        emit({"type": "frame", "shot": f"/runs/{scan_id}/frame-{n}.jpg"})
-    error = None
+def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, budget: Budget, use_model: bool, canary: dict,
+            on_frame=None, max_actions: int = MAX_ACTIONS) -> dict:
+    """One visitor opens the link in its own fresh sandbox, acts like a person, and everything is recorded into `ev`.
+    The sandbox is destroyed before this returns, whatever happens."""
+    lead = bool(persona.get("lead"))
+    sb = Sandbox(memory=None if lead else "512m", scan_id=scan_id)
+    history, tried, error, first_shot = [], set(), None, None
+    prefix = "step" if lead else f"p-{persona['id']}"
     try:
         info = sb.start()
         emit({"type": "sandbox", "phase": "created", "info": info})
         demo = env("DECOY_DEMO", "1") == "1"
-        state = sb.send({"cmd": "open", "url": url, "canary": canary,
+        state = sb.send({"cmd": "open", "url": url, "canary": canary, "persona": persona,
                          "demo_ip": ("127.0.0.1" if sb.mode == "local" else "host-gateway") if demo else None,
                          "demo_suffix": DEMO_SUFFIX if demo else None}, timeout=40)
-        for step in range(MAX_ACTIONS + 1):
+        for step in range(max_actions + 1):
             if not state.get("ok"):
                 raise SandboxError(state.get("error", "sandbox step failed"))
             shot_url = None
             if state.get("screenshot"):
-                (out_dir / f"step-{step}.jpg").write_bytes(base64.b64decode(state["screenshot"]))
-                shot_url = f"/runs/{scan_id}/step-{step}.jpg"
+                (out_dir / f"{prefix}-{step}.jpg").write_bytes(base64.b64decode(state["screenshot"]))
+                shot_url = f"/runs/{scan_id}/{prefix}-{step}.jpg"
+                first_shot = first_shot or shot_url
             ev.add_state(state, step)
             for n in state.get("network", []):
                 if n.get("blocked"):
@@ -191,8 +193,8 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget) -> dict:
             leaks = [{"host": n["host"], "data": n["canary_sent"]} for n in state.get("network", []) if n.get("canary_sent")]
             emit({"type": "page", "step": step, "url": state.get("url"), "title": state.get("title"), "shot": shot_url,
                   "leaks": leaks, "downloads": state.get("downloads", []), "requests": len(state.get("network", [])),
-                  "note": state.get("note")})
-            if step == MAX_ACTIONS:
+                  "note": state.get("note"), "asked": sorted(ev.asked)})
+            if step == max_actions:
                 break
             budget.check()
             page = state.get("page") or {}
@@ -201,7 +203,7 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget) -> dict:
             if ev.official:
                 # Never type even fake data into a real service: on official sites Decoy only looks.
                 action = {"action": "done", "reason": "This is an official site, so I only look and never type anything."}
-            elif use_model:
+            elif use_model and lead:
                 try:
                     action = model_plan(budget, state, history)
                     by = llm.model_name()
@@ -224,17 +226,81 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget) -> dict:
                 break
             history.append(f"{action['action']} {action.get('id', action.get('submit_id', ''))}")
             cmd = {"cmd": action["action"], **{k: v for k, v in action.items() if k not in ("action", "reason")}}
-            state = sb.send(cmd, timeout=45, on_frame=live_frame)
+            state = sb.send(cmd, timeout=45, on_frame=on_frame)
     except BudgetExceeded as e:
         error = f"Stopped: {e}."
-    except (SandboxError, Exception) as e:
+    except Exception as e:
         error = f"Sandbox problem: {e}"
     finally:
         emit({"type": "sandbox", "phase": "destroyed", "info": sb.destroy()})
+    return {"error": error, "info": sb.info, "first_shot": first_shot}
+
+
+def run_scan(scan_id: str, url: str, emit, budget: Budget) -> dict:
+    started = time.time()
+    out_dir = RUNS / scan_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    signals = domain_signals(url)
+    use_model = llm.available()
+    official = any(s["kind"] == "official_domain" for s in signals)
+    swarm = [p for p in PERSONAS if p.get("lead")] if (official or env("DECOY_SWARM", "1") != "1") else list(PERSONAS)
+    canaries = {p["id"]: make_canary() for p in swarm}
+    lead = swarm[0]
+    emit({"type": "start", "url": url, "canary": canaries[lead["id"]], "planner": llm.model_name(),
+          "swarm": [{"id": p["id"], "name": p["name"], "device": p["device"]} for p in swarm]})
+    if signals:
+        emit({"type": "signals", "items": signals})
+
+    frames = [0]
+
+    def live_frame(b64: str):
+        """Save a live frame from the lead's sandbox and tell the browser to show it."""
+        frames[0] += 1
+        n = frames[0]
+        (out_dir / f"frame-{n}.jpg").write_bytes(base64.b64decode(b64))
+        emit({"type": "frame", "shot": f"/runs/{scan_id}/frame-{n}.jpg"})
+
+    def scout_emit(p):
+        def f(e):
+            if e["type"] == "page":
+                emit({"type": "scout", "id": p["id"], "name": p["name"], "device": p["device"], "step": e["step"], "title": e.get("title"),
+                      "shot": e.get("shot"), "leaks": e.get("leaks", []), "asked": e.get("asked", [])})
+        return f
+
+    evs = {p["id"]: Evidence(url, signals) for p in swarm}
+    results: dict[str, dict] = {}
+    with ThreadPoolExecutor(max_workers=len(swarm)) as pool:
+        futs = {p["id"]: pool.submit(explore, p, url, scan_id, out_dir, evs[p["id"]], emit if p.get("lead") else scout_emit(p), budget,
+                                     use_model, canaries[p["id"]], live_frame if p.get("lead") else None, 6 if p.get("lead") else 3)
+                for p in swarm}
+        for pid, f in futs.items():
+            try:
+                results[pid] = f.result()
+            except Exception as e:
+                results[pid] = {"error": f"Visitor failed: {e}", "info": {}, "first_shot": None}
+    error = results[lead["id"]]["error"]
     if error:
         emit({"type": "note", "text": error})
 
+    ev = evs[lead["id"]]
+    visitors = [{"id": p["id"], "name": p["name"], "device": p["device"], "sig": evs[p["id"]].first_sig, "level": evs[p["id"]].verdict()["level"],
+                 "shot": results[p["id"]]["first_shot"], "title": (evs[p["id"]].last_title or ""), "error": results[p["id"]]["error"],
+                 "asked": sorted(evs[p["id"]].asked)} for p in swarm]
+    for p in swarm[1:]:
+        ev.absorb(evs[p["id"]])
+    c = cloaking([{"name": x["name"], "sig": x["sig"]} for x in visitors])
+    if c:
+        ev.extra.append(c)
+        emit({"type": "cloaking", "text": c["text"]})
     v = ev.verdict()
+    mem = store.memory(url, [g["host"] for g in v["attacker_got"]], exclude_id=scan_id)
+    if mem["campaign"]:
+        hosts = sorted({m["shared_server"] for m in mem["campaign"]})
+        ev.extra.append({"kind": "campaign", "weight": 15, "text": f"{len(mem['campaign'])} earlier scan(s) sent stolen data to the same server "
+                         f"({', '.join(hosts)}): this looks like part of one scam campaign."})
+        v = ev.verdict()
+    v["memory"] = mem
+    v["swarm"] = [{k: x[k] for k in ("id", "name", "device", "level", "shot", "title", "error", "asked")} for x in visitors]
     v["summary"], v["summary_by"] = template_summary(v), "rules"
     if use_model:
         try:
@@ -245,7 +311,11 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget) -> dict:
             pass
     v["model_calls"] = budget.calls
     v["seconds"] = round(time.time() - started, 1)
-    v["sandbox"] = sb.info
+    v["sandbox"] = results[lead["id"]]["info"]
     v["error"] = error
+    try:
+        store.save(scan_id, url, v)
+    except Exception as e:
+        emit({"type": "note", "text": f"Could not save to memory: {e}"})
     emit({"type": "verdict", **v})
     return v

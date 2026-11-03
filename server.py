@@ -52,7 +52,9 @@ def examples():
     p = DEMO_PORT
     return [{"label": "Fake bank login", "url": f"http://n0rthbank-login.test:{p}/"},
             {"label": "Fake invoice", "url": f"http://invoice-portal.test:{p}/"},
-            {"label": "Harmless recipe", "url": f"http://daily-recipes.test:{p}/"}]
+            {"label": "Harmless recipe", "url": f"http://daily-recipes.test:{p}/"},
+            {"label": "Short link", "url": f"http://go-short.test:{p}/x"},
+            {"label": "Cloaked scam", "url": f"http://cloaked-promo.test:{p}/"}]
 
 
 def _worker(scan_id: str, url: str, budget: guard.Budget):
