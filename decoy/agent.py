@@ -161,6 +161,14 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget) -> dict:
 
     sb = Sandbox()
     history, tried = [], set()
+    frames = [0]
+
+    def live_frame(b64: str):
+        """Save a live frame from the sandbox and tell the browser to show it."""
+        frames[0] += 1
+        n = frames[0]
+        (out_dir / f"frame-{n}.jpg").write_bytes(base64.b64decode(b64))
+        emit({"type": "frame", "shot": f"/runs/{scan_id}/frame-{n}.jpg"})
     error = None
     try:
         info = sb.start()
@@ -216,7 +224,7 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget) -> dict:
                 break
             history.append(f"{action['action']} {action.get('id', action.get('submit_id', ''))}")
             cmd = {"cmd": action["action"], **{k: v for k, v in action.items() if k not in ("action", "reason")}}
-            state = sb.send(cmd)
+            state = sb.send(cmd, timeout=45, on_frame=live_frame)
     except BudgetExceeded as e:
         error = f"Stopped: {e}."
     except (SandboxError, Exception) as e:

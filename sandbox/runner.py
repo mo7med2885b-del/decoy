@@ -66,6 +66,28 @@ SCAN_JS = r"""
 """
 
 
+# A drawn cursor (headless browsers have none) so the live view shows where the agent points and clicks.
+CURSOR_JS = r"""
+(() => {
+  const mk = () => {
+    if (document.getElementById('__decoy_cursor') || !document.body) return;
+    const c = document.createElement('div');
+    c.id = '__decoy_cursor';
+    c.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24"><path d="M4 2l15 10.5-6.6 1.3 3.9 7.4-3 1.5-3.8-7.5L4 20z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+    c.style.cssText = 'position:fixed;left:640px;top:400px;z-index:2147483647;pointer-events:none;transition:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))';
+    document.body.appendChild(c);
+    const ring = document.createElement('div');
+    ring.style.cssText = 'position:fixed;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:3px solid #ff6b5e;z-index:2147483646;pointer-events:none;opacity:0;transition:opacity .25s,transform .25s;transform:scale(.4)';
+    document.body.appendChild(ring);
+    addEventListener('mousemove', e => { c.style.left = e.clientX + 'px'; c.style.top = e.clientY + 'px'; }, true);
+    addEventListener('mousedown', e => { ring.style.left = e.clientX + 'px'; ring.style.top = e.clientY + 'px';
+      ring.style.opacity = 1; ring.style.transform = 'scale(1)'; setTimeout(() => { ring.style.opacity = 0; ring.style.transform = 'scale(.4)'; }, 350); }, true);
+  };
+  document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mk) : mk();
+})();
+"""
+
+
 def emit(obj):
     sys.stdout.write(json.dumps(obj) + "\n")
     sys.stdout.flush()
@@ -97,6 +119,7 @@ class Runner:
         self.canary = {}
         self.demo_suffix = None
         self.requests_seen = 0
+        self.mouse = (VIEW["width"] / 2, VIEW["height"] / 2)
 
     # ---- setup -------------------------------------------------------------
     def open(self, msg):
@@ -113,6 +136,7 @@ class Runner:
                                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                                                   "(KHTML, like Gecko) Chrome/130.0 Safari/537.36")
         ctx.route("**/*", self._route)
+        ctx.add_init_script(CURSOR_JS)
         ctx.on("page", self._watch)
         self.page = ctx.new_page()
         self._watch(self.page)
@@ -180,6 +204,10 @@ class Runner:
                 info = {"error": str(e)[:120]}
                 self.page.wait_for_timeout(800)
         try:
+            self.page.mouse.move(*self.mouse)  # a new page draws a new cursor: put it where the mouse is
+        except Exception:
+            pass
+        try:
             shot = base64.b64encode(self.page.screenshot(type="jpeg", quality=62)).decode()
         except Exception:
             shot = None
@@ -189,6 +217,39 @@ class Runner:
         return {"ok": True, "url": self.page.url[:500], "title": (self.page.title() or "")[:150], "screenshot": shot,
                 "page": info, "network": net, "downloads": dls, "dialogs": dlg, "note": note}
 
+    # ---- live frames + a visible cursor, so a person can watch the agent work ----
+    def frame(self):
+        """Send one small live screenshot before the command's final answer (control plane streams it)."""
+        try:
+            emit({"frame": base64.b64encode(self.page.screenshot(type="jpeg", quality=45)).decode()})
+        except Exception:
+            pass
+
+    def move_to(self, selector):
+        loc = self.page.locator(selector).first
+        loc.scroll_into_view_if_needed(timeout=3000)
+        box = loc.bounding_box(timeout=3000)
+        if not box:
+            raise RuntimeError("element has no position")
+        tx, ty = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+        sx, sy = self.mouse
+        steps = 9
+        for i in range(1, steps + 1):
+            t = i / steps
+            t = t * t * (3 - 2 * t)  # ease in and out
+            self.page.mouse.move(sx + (tx - sx) * t, sy + (ty - sy) * t)
+            if i % 3 == 0:
+                self.frame()
+        self.mouse = (tx, ty)
+        return loc
+
+    def press(self, selector):
+        loc = self.move_to(selector)
+        self.page.mouse.down()
+        self.frame()
+        self.page.mouse.up()
+        return loc
+
     # ---- actions (only fake canary values can be typed) ---------------------
     def fill_and_submit(self, msg):
         for f in msg.get("fields", []):
@@ -196,26 +257,34 @@ class Runner:
             if not value:
                 continue
             try:
-                self.page.fill(f'[data-decoy-id="{int(f["id"])}"]', value, timeout=3000)
+                loc = self.press(f'[data-decoy-id="{int(f["id"])}"]')
+                loc.fill("", timeout=2000)
+                for i in range(0, len(value), 3):  # type like a person, a few letters per live frame
+                    loc.press_sequentially(value[i:i + 3], delay=45)
+                    self.frame()
             except Exception:
                 pass
         sub = msg.get("submit_id")
         try:
             if sub:
-                self.page.click(f'[data-decoy-id="{int(sub)}"]', timeout=3000)
+                self.press(f'[data-decoy-id="{int(sub)}"]')
             else:
                 self.page.keyboard.press("Enter")
         except Exception as e:
             return self.state(note=f"submit failed: {str(e)[:100]}")
-        self.page.wait_for_timeout(1500)
+        self.page.wait_for_timeout(700)
+        self.frame()
+        self.page.wait_for_timeout(800)
         return self.state()
 
     def click(self, msg):
         try:
-            self.page.click(f'[data-decoy-id="{int(msg["id"])}"]', timeout=3000)
+            self.press(f'[data-decoy-id="{int(msg["id"])}"]')
         except Exception as e:
             return self.state(note=f"click failed: {str(e)[:100]}")
-        self.page.wait_for_timeout(1500)
+        self.page.wait_for_timeout(700)
+        self.frame()
+        self.page.wait_for_timeout(800)
         return self.state()
 
     def close(self):

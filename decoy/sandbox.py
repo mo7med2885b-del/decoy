@@ -76,12 +76,22 @@ class Sandbox:
             raise SandboxError("sandbox exited")
         return json.loads(line)
 
-    def send(self, cmd: dict, timeout: float | None = None) -> dict:
+    def send(self, cmd: dict, timeout: float | None = None, on_frame=None) -> dict:
+        """Send one command; live frames that arrive before the answer go to on_frame."""
         if not self.proc or self.proc.poll() is not None:
             raise SandboxError("sandbox is not running")
         self.proc.stdin.write(json.dumps(cmd) + "\n")
         self.proc.stdin.flush()
-        return self._wait(timeout or LIMITS["step_timeout_s"])
+        deadline = time.time() + (timeout or LIMITS["step_timeout_s"])
+        while True:
+            msg = self._wait(max(0.5, deadline - time.time()))
+            if "frame" not in msg:
+                return msg
+            if on_frame:
+                try:
+                    on_frame(msg["frame"])
+                except Exception:
+                    pass
 
     def destroy(self):
         """Always runs, even after errors: the sandbox never outlives its scan."""

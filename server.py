@@ -145,7 +145,7 @@ def decisions():
 
 @app.get("/runs/{scan_id}/{name}")
 def run_file(scan_id: str, name: str):
-    if not re.fullmatch(r"[0-9a-f]{12}", scan_id) or not re.fullmatch(r"step-\d{1,2}\.jpg", name):
+    if not re.fullmatch(r"[0-9a-f]{12}", scan_id) or not re.fullmatch(r"(step-\d{1,2}|frame-\d{1,4})\.jpg", name):
         raise HTTPException(404)
     f = RUNS / scan_id / name
     if not f.exists():
