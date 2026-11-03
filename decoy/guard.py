@@ -1,4 +1,4 @@
-﻿"""Budget guard for model calls. Never weaken it.
+"""Budget guard for model calls. Never weaken it.
 
 Per scan: max calls and a wall-clock deadline. Per day: max calls and max dollars (ledger on disk).
 Global: a kill switch and a limit on parallel scans.

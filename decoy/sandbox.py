@@ -23,8 +23,10 @@ class SandboxError(RuntimeError):
 
 
 class Sandbox:
-    def __init__(self, mode: str | None = None):
+    def __init__(self, mode: str | None = None, memory: str | None = None, scan_id: str = ""):
         self.mode = mode or env("DECOY_SANDBOX", "docker")
+        self.memory = memory or LIMITS["memory"]
+        self.scan_id = scan_id
         self.name = "decoy-" + uuid.uuid4().hex[:10]
         self.proc = None
         self.lines = queue.Queue()
@@ -37,7 +39,8 @@ class Sandbox:
             return [sys.executable, "-u", str(ROOT / "sandbox" / "runner.py")]
         cmd = ["docker", "run", "-i", "--rm", "--name", self.name,
                "--read-only", "--tmpfs", f"/tmp:rw,size={LIMITS['tmpfs']},mode=1777",
-               "--memory", LIMITS["memory"], "--memory-swap", LIMITS["memory"], "--cpus", LIMITS["cpus"],
+               "--label", f"decoy-scan={self.scan_id or 'none'}",
+               "--memory", self.memory, "--memory-swap", self.memory, "--cpus", LIMITS["cpus"],
                "--pids-limit", str(LIMITS["pids"]), "--cap-drop", "ALL",
                "--security-opt", "no-new-privileges", "--user", "10001",
                "--add-host", "host.docker.internal:host-gateway", "--shm-size", "256m"]
@@ -59,7 +62,7 @@ class Sandbox:
         if not hello.get("ready"):
             raise SandboxError("sandbox did not start")
         self.info = {"name": self.name, "mode": self.mode, "runtime": env("DECOY_SANDBOX_RUNTIME") or "runc",
-                     "user": "10001 (no root)" if self.mode == "docker" else "host user (UNSAFE dev mode)", **LIMITS}
+                     "user": "10001 (no root)" if self.mode == "docker" else "host user (UNSAFE dev mode)", **{**LIMITS, "memory": self.memory}}
         return self.info
 
     def _read(self):
@@ -117,3 +120,15 @@ def docker_ready() -> bool:
         return out.returncode == 0
     except Exception:
         return False
+
+
+def kill_scan(scan_id: str):
+    """Hard stop: remove every container of a scan, even if its runner is stuck."""
+    try:
+        ids = subprocess.run(["docker", "ps", "-aq", "--filter", f"label=decoy-scan={scan_id}"],
+                             capture_output=True, text=True, timeout=10).stdout.split()
+        if ids:
+            subprocess.run(["docker", "rm", "-f", *ids], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+        return len(ids)
+    except Exception:
+        return 0

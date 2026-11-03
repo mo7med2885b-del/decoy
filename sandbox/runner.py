@@ -1,4 +1,4 @@
-﻿"""Decoy sandbox runner. Runs INSIDE the sealed container.
+"""Decoy sandbox runner. Runs INSIDE the sealed container.
 
 It drives one headless Chromium and talks to the control plane over stdin/stdout,
 one JSON object per line. It holds no API keys, no credentials except the fake
@@ -119,6 +119,7 @@ class Runner:
         self.canary = {}
         self.demo_suffix = None
         self.requests_seen = 0
+        self.redirects = []
         self.mouse = (VIEW["width"] / 2, VIEW["height"] / 2)
 
     # ---- setup -------------------------------------------------------------
@@ -132,9 +133,15 @@ class Runner:
                 demo_ip = socket.gethostbyname("host.docker.internal")
             args.append(f"--host-resolver-rules=MAP *{self.demo_suffix} {demo_ip}")
         self.browser = self.pw.chromium.launch(headless=True, args=args)
-        ctx = self.browser.new_context(viewport=VIEW, accept_downloads=True, java_script_enabled=True,
-                                       user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                                                  "(KHTML, like Gecko) Chrome/130.0 Safari/537.36")
+        # Each visitor persona looks different to the website: device, browser string, language.
+        per = msg.get("persona") or {}
+        view = per.get("viewport") or VIEW
+        self.mouse = (view["width"] / 2, view["height"] / 2)
+        ctx = self.browser.new_context(viewport=view, accept_downloads=True, java_script_enabled=True,
+                                       user_agent=per.get("ua") or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                                                                   "(KHTML, like Gecko) Chrome/130.0 Safari/537.36",
+                                       is_mobile=bool(per.get("mobile")), has_touch=bool(per.get("mobile")),
+                                       locale=per.get("locale") or "en-US")
         ctx.route("**/*", self._route)
         ctx.add_init_script(CURSOR_JS)
         ctx.on("page", self._watch)
@@ -149,7 +156,16 @@ class Runner:
     def _watch(self, page):
         self.page = page  # follow pop-ups and new tabs
         page.on("download", self._download)
+        page.on("response", self._response)
         page.on("dialog", lambda d: (self.dialogs.append({"type": d.type, "message": d.message[:200]}), d.dismiss()))
+
+    def _response(self, resp):
+        """Record every redirect of a page navigation (a short link hiding the real destination, a hop through another site)."""
+        try:
+            if 300 <= resp.status < 400 and resp.request.is_navigation_request():
+                self.redirects.append({"from": resp.url[:200], "to": (resp.headers.get("location") or "")[:200], "status": resp.status})
+        except Exception:
+            pass
 
     def _download(self, dl):
         path = f"/tmp/dl-{len(self.downloads)}" if os.name != "nt" else os.path.join(os.environ.get("TEMP", "."), f"decoy-dl-{len(self.downloads)}")
@@ -215,7 +231,7 @@ class Runner:
         dls, self.downloads = self.downloads, []
         dlg, self.dialogs = self.dialogs, []
         return {"ok": True, "url": self.page.url[:500], "title": (self.page.title() or "")[:150], "screenshot": shot,
-                "page": info, "network": net, "downloads": dls, "dialogs": dlg, "note": note}
+                "page": info, "network": net, "downloads": dls, "dialogs": dlg, "note": note, "redirects": self.redirects[:12]}
 
     # ---- live frames + a visible cursor, so a person can watch the agent work ----
     def frame(self):

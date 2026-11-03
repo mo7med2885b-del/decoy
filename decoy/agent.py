@@ -1,4 +1,4 @@
-﻿"""The Decoy agent loop: check the link, open it in a fresh sandbox, act like a curious person
+"""The Decoy agent loop: check the link, open it in a fresh sandbox, act like a curious person
 (click, type FAKE data), record everything, destroy the sandbox, then judge in code.
 
 The model only proposes the next action; code validates it. The model can never type anything

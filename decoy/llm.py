@@ -1,4 +1,4 @@
-﻿"""Vultr Serverless Inference client (OpenAI-compatible). The key stays on the control plane only."""
+"""Vultr Serverless Inference client (OpenAI-compatible). The key stays on the control plane only."""
 import json
 import re
 
