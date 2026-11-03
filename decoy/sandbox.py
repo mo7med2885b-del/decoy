@@ -48,8 +48,9 @@ class Sandbox:
 
     def start(self):
         # The sandbox gets an EMPTY environment apart from what a browser needs: no keys can leak in.
-        clean_env = {k: os.environ[k] for k in ("PATH", "SYSTEMROOT", "TEMP", "TMP", "HOME", "USERPROFILE",
-                                                "LOCALAPPDATA", "PLAYWRIGHT_BROWSERS_PATH") if k in os.environ}
+        clean_env = {k: os.environ[k] for k in ("PATH", "SYSTEMROOT", "SYSTEMDRIVE", "TEMP", "TMP", "HOME", "USERPROFILE",
+                                                "APPDATA", "LOCALAPPDATA", "PLAYWRIGHT_BROWSERS_PATH", "DOCKER_HOST")
+                     if k in os.environ}
         self.proc = subprocess.Popen(self.command(), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      stderr=subprocess.DEVNULL, text=True, encoding="utf-8", env=clean_env, bufsize=1)
         threading.Thread(target=self._read, daemon=True).start()
@@ -58,7 +59,7 @@ class Sandbox:
         if not hello.get("ready"):
             raise SandboxError("sandbox did not start")
         self.info = {"name": self.name, "mode": self.mode, "runtime": env("DECOY_SANDBOX_RUNTIME") or "runc",
-                     "user": hello.get("user") or "10001", **LIMITS}
+                     "user": "10001 (no root)" if self.mode == "docker" else "host user (UNSAFE dev mode)", **LIMITS}
         return self.info
 
     def _read(self):
