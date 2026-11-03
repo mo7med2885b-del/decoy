@@ -142,7 +142,9 @@ body[data-risk="clean"] .ring-fg { stroke: var(--green); }
 .flow .pkt { fill: #c9fff6; filter: drop-shadow(0 0 5px #5fd4c4); }
 .flow .pkt.bad { fill: #ffb3aa; filter: drop-shadow(0 0 5px #ff6b5e); }
 @keyframes dash { to { stroke-dashoffset: -26; } }
-.chain { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px 26px; position: relative; }
+.chain { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px 46px; position: relative; }
+.flow .edge { stroke-width: 3; stroke: #2c5a57; }
+.chain li { padding: 10px 11px; }
 .chain li[data-n="judge"] { grid-column: 3; grid-row: 2; }
 .chain li[data-n="destroy"] { grid-column: 2; grid-row: 2; }
 .chain li[data-n="you"] { grid-column: 1; grid-row: 2; }
