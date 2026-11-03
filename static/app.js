@@ -44,6 +44,86 @@ function stepTo(n) {
 function node() {}  // the old small graph is gone: workflow.js draws the panel from the same events
 function stat(id, v, hot) { $(id).textContent = v; $(id).parentElement.classList.toggle('hot', !!hot); }
 
+
+/* ---------- swarm cards, memory banner, ask box, history, QR ---------- */
+const LEVEL_TXT = {'DANGEROUS': 'Dangerous', 'SUSPICIOUS': 'Suspicious', 'LOOKS SAFE': 'Looks safe', 'NO THREAT FOUND': 'No threat'};
+function levelCls(l) { return l === 'DANGEROUS' ? 'bad' : l === 'SUSPICIOUS' ? 'warn' : 'ok'; }
+function buildSwarm(list) {
+  $('swarm').innerHTML = ''; $('swarmwarn').classList.add('hidden');
+  $('swarmcard').classList.toggle('hidden', !(list && list.length > 1));
+  (list || []).forEach(p => {
+    const d = document.createElement('div'); d.className = 'sw'; d.id = 'sw-' + p.id;
+    d.innerHTML = `<div class="swh"><b>${esc(p.name)}</b><span>${esc(p.device)}</span></div><div class="swimg"><span class="small">waiting…</span></div>
+      <div class="swt small">opening the link…</div><div class="swchip"></div>`;
+    $('swarm').appendChild(d);
+  });
+}
+function swUpdate(id, o) {
+  const d = $('sw-' + id); if (!d) return;
+  if (o.shot) d.querySelector('.swimg').innerHTML = `<img src="${o.shot}" alt="">`;
+  if (o.title != null) d.querySelector('.swt').textContent = o.title ? `Saw: ${o.title}` : 'Saw a page';
+  const bits = [];
+  if ((o.asked || []).length) bits.push('asked for ' + o.asked.map(x => (LABELS[x] || x).toLowerCase()).join(' + '));
+  if ((o.leaks || []).length) bits.push('fake data sent away');
+  const chip = d.querySelector('.swchip');
+  chip.innerHTML = (o.level ? `<i class="${levelCls(o.level)}">${LEVEL_TXT[o.level] || o.level}</i>` : '') + bits.map(b => `<i class="bad">${esc(b)}</i>`).join('');
+}
+function showMemory(m) {
+  const box = $('memory'); const parts = [];
+  if (m && (m.campaign || []).length) {
+    const hosts = [...new Set(m.campaign.map(c => c.shared_server))];
+    parts.push(`<b>Linked to a campaign.</b> ${m.campaign.length} earlier scan(s) sent stolen data to the same server (${esc(hosts.join(', '))}): ` +
+      esc([...new Set(m.campaign.map(c => c.host))].slice(0, 4).join(', ')) + '.');
+  }
+  if (m && (m.seen_before || []).length) {
+    const l = m.seen_before[0];
+    parts.push(`We have scanned this site ${m.seen_before.length} time(s) before. Last result: <b>${esc(LEVEL_TXT[l.level] || l.level)}</b>.`);
+  }
+  box.innerHTML = parts.map(p => `<p>${p}</p>`).join(''); box.classList.toggle('hidden', !parts.length);
+}
+const ASK_CHIPS = ['Is it safe to open?', 'What did the attacker get?', 'Why this verdict?', 'Did every visitor see the same page?'];
+function initAsk() {
+  $('askchips').innerHTML = '';
+  ASK_CHIPS.forEach(q => { const b = document.createElement('button'); b.type = 'button'; b.textContent = q; b.onclick = () => ask(q); $('askchips').appendChild(b); });
+  $('askform').onsubmit = e => { e.preventDefault(); ask($('askq').value); };
+}
+async function ask(q) {
+  q = (q || '').trim(); if (!q || !scanId) return;
+  $('askq').value = q; $('askout').classList.remove('hidden'); $('askout').textContent = 'Thinking…';
+  try {
+    const r = await fetch(`/api/scan/${scanId}/ask`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({question: q})});
+    const j = await r.json();
+    if (!r.ok) { $('askout').textContent = j.detail || 'Could not answer.'; return; }
+    $('askout').innerHTML = ''; const p = document.createElement('p'); $('askout').appendChild(p); typeInto(p, j.answer);
+    $('askout').insertAdjacentHTML('beforeend', `<small class="small">answered from this scan's evidence · ${esc(j.by)}</small>`);
+  } catch (e) { $('askout').textContent = 'The server did not answer.'; }
+}
+function ago(t) { const s = Math.max(1, Date.now() / 1000 - t); return s < 90 ? 'just now' : s < 5400 ? Math.round(s / 60) + ' min ago' : s < 129600 ? Math.round(s / 3600) + ' h ago' : Math.round(s / 86400) + ' d ago'; }
+async function refreshHistory() {
+  try {
+    const rows = await (await fetch('/api/history')).json();
+    $('histcard').classList.toggle('hidden', !rows.length);
+    $('hist').innerHTML = rows.map(r => {
+      const ex = JSON.parse(r.exfil || '[]');
+      return `<li data-url="${esc(r.url)}"><i class="${levelCls(r.level)}">${esc(LEVEL_TXT[r.level] || r.level)}</i><span class="hu">${esc(r.host)}</span>` +
+        `${r.cloaking ? '<em>cloaked</em>' : ''}${ex.length ? `<em>sent data to ${esc(ex[0])}</em>` : ''}${r.decision ? `<em>you: ${esc(r.decision)}</em>` : ''}<small>${ago(r.at)}</small><button class="rescan" type="button" title="Scan again">↻</button></li>`;
+    }).join('');
+    document.querySelectorAll('#hist li').forEach(li => li.querySelector('.rescan').onclick = () => { $('url').value = li.dataset.url; start(); });
+  } catch (e) {}
+}
+function initQr() {
+  $('qrfile').onchange = async () => {
+    const f = $('qrfile').files[0]; if (!f) return; $('qrnote').textContent = 'Reading the QR code…';
+    try {
+      const r = await fetch('/api/qr', {method: 'POST', headers: {'Content-Type': 'application/octet-stream'}, body: await f.arrayBuffer()});
+      const j = await r.json();
+      if (!r.ok) { $('qrnote').textContent = j.detail || 'Could not read it.'; $('qrfile').value = ''; return; }
+      $('qrnote').textContent = 'The QR code contains: ' + j.url; $('url').value = j.url; start();
+    } catch (e) { $('qrnote').textContent = 'The server did not answer.'; }
+    $('qrfile').value = '';
+  };
+}
+
 async function refreshHealth() {
   try {
     const h = await (await fetch('/api/health')).json();
@@ -57,7 +137,7 @@ async function refreshHealth() {
 }
 
 async function init() {
-  refreshHealth();
+  refreshHealth(); refreshHistory(); initAsk(); initQr();
   try {
     for (const ex of await (await fetch('/api/examples')).json()) {
       const b = document.createElement('button');
@@ -87,7 +167,7 @@ function reset() {
   $('screenmsg').textContent = 'Starting a fresh sandbox…';
   ['l-created', 'l-running', 'l-destroyed'].forEach(id => $(id).className = '');
   $('seal').className = 'seal'; $('seal').textContent = 'STARTING';
-  WF.reset();
+  WF.reset(); buildSwarm([]); $('memory').classList.add('hidden'); $('askbox').classList.add('hidden'); $('askout').classList.add('hidden'); $('askout').textContent = '';
   Object.keys(count).forEach(k => count[k] = 0);
   stat('sSteps', 0); stat('sBlocked', 0); stat('sLeaks', 0); stat('sCalls', 0);
   queue.length = 0;
@@ -115,7 +195,15 @@ async function start() {
 function handle(ev) {
   try { WF.event(ev); } catch (e) { console.error(e); }
   switch (ev.type) {
+    case 'queued':
+      trace(ev.position > 0 ? `Waiting in the queue, position ${ev.position}.` : 'Starting right away.', 'queue'); break;
+    case 'running': break;
+    case 'scout':
+      swUpdate(ev.id, ev); break;
+    case 'cloaking':
+      $('swarmwarn').textContent = ev.text; $('swarmwarn').classList.remove('hidden'); trace(ev.text, 'cloaking check · code', 'bad'); break;
     case 'start':
+      buildSwarm(ev.swarm); if (ev.swarm && ev.swarm.length > 1) trace(`${ev.swarm.length} visitors will open the link in parallel: ` + ev.swarm.map(s => s.name).join(', ') + '.', 'swarm · control plane');
       $('canary').innerHTML = Object.entries(ev.canary).map(([k, v]) => `<dt>${LABELS[k] || k}</dt><dd>${esc(v)}</dd>`).join('');
       node('check', 'active');
       trace(`Checking the address ${ev.url}`, 'address check · code');
@@ -142,6 +230,7 @@ function handle(ev) {
       }
       break;
     case 'page':
+      swUpdate('careless', {shot: ev.shot, title: ev.title, asked: ev.asked, leaks: ev.leaks});
       node('explore', 'active');
       count.steps++; stat('sSteps', count.steps);
       $('addr').textContent = ev.url || '';
@@ -224,6 +313,8 @@ function showVerdict(v) {
   $('loot').innerHTML = (v.attacker_got || []).map(g => `<div class="lootbox"><b>${esc(g.host)}</b> received your fake ${esc(g.data.map(d => (LABELS[d] || d).toLowerCase()).join(', '))}</div>`).join('')
     || '<p class="small">Nothing was sent to another server.</p>';
   $('vgrid').classList.remove('hidden'); $('decide').classList.remove('hidden');
+  showMemory(v.memory); (v.swarm || []).forEach(s => swUpdate(s.id, {level: s.level, title: s.title, asked: s.asked}));
+  $('askbox').classList.remove('hidden'); refreshHistory();
   trace(`Verdict ${v.level}, score ${v.score}/100, from ${v.evidence.length} pieces of evidence.`, 'evidence judge · code', risk === 'clean' ? 'good' : 'bad');
   stepTo(3);
 }

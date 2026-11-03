@@ -48,6 +48,7 @@
             <button class="btn primary" type="submit" id="go">Open it safely →</button>
           </form>
           <div class="examples"><span class="small">Test links (fake sites we host):</span><div class="chipset" id="examples"></div></div>
+          <div class="examples"><span class="small">Got a QR code instead?</span><label class="qrbtn">▦ Scan a QR picture<input type="file" id="qrfile" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label><span class="small" id="qrnote"></span></div>
           <p class="err" id="err"></p>
         </section>
 
@@ -62,10 +63,17 @@
               </div>
               <div class="vmeta" id="vmeta"></div>
             </div>
+            <div class="memory hidden" id="memory"></div>
             <div class="vgrid hidden" id="vgrid">
               <div class="sheet"><h3>Why</h3><ol id="evidence"></ol></div>
               <div class="sheet"><h3>What the attacker would have received</h3><div id="loot"></div>
                 <p class="small">Only the fake data listed below was ever typed. Nothing real left your hands.</p></div>
+            </div>
+            <div class="askbox hidden" id="askbox">
+              <h3>Ask Decoy about this scan</h3>
+              <div class="chipset" id="askchips"></div>
+              <form id="askform" class="askrow"><input id="askq" type="text" maxlength="400" placeholder="e.g. What did the attacker get?" autocomplete="off"><button class="btn" type="submit">Ask</button></form>
+              <div class="askout hidden" id="askout"></div>
             </div>
             <div class="decide hidden" id="decide">
               <div><h3>Your decision</h3><p class="small">Decoy never blocks or reports anything by itself. You decide, and it is recorded.</p></div>
@@ -77,6 +85,12 @@
               </div>
               <p class="small" id="decided"></p>
             </div>
+          </section>
+
+          <section class="card hidden" id="swarmcard">
+            <h3>Visitor swarm <small class="small">the same link, opened by different visitors in separate sandboxes</small></h3>
+            <div class="swarmwarn hidden" id="swarmwarn"></div>
+            <div class="swarm" id="swarm"></div>
           </section>
 
           <section class="browser card">
@@ -97,6 +111,8 @@
             <section class="card"><h3>Blocked by the sandbox</h3><ul class="blocked" id="blocked"><li class="small">Nothing yet.</li></ul></section>
           </div>
         </section>
+
+        <section class="card hidden" id="histcard"><h3>Recent scans · threat memory</h3><ul class="hist" id="hist"></ul></section>
       </div>
 
       <!-- Agent workflow: always visible on the right, driven only by real scan events -->

@@ -6,16 +6,17 @@ const WF = (() => {
     control: [50, 62, '', 'Decoy control plane', 'Vultr VM · plans and verifies', 'core'],
     link: [50, 152, '✉', 'Suspicious link', 'email · WhatsApp · text', 'code'],
     check: [50, 230, '⌁', 'Address check', 'code · look-alikes', 'code'],
-    sandbox: [50, 308, '▣', 'Sealed browser', 'fresh Docker box', 'code'],
+    sandbox: [50, 308, '▣', 'Sealed browser', 'a fresh Docker box each', 'code'],
     explore: [27, 410, '◉', 'Explorer agent', 'Vultr AI · small model', 'model'],
     net: [73, 410, '⛨', 'Egress filter', 'code · blocks private IPs', 'code'],
+    memory: [73, 505, '◈', 'Threat memory', 'SQLite · seen before?', 'code'],
     destroy: [27, 505, '✕', 'Sandbox destroyed', 'lifecycle', 'code'],
     judge: [50, 596, '⚖', 'Evidence judge', 'code · score by rules', 'code'],
     summary: [27, 694, '✎', 'Summary', 'Vultr AI · small model', 'model'],
     human: [73, 694, '✓', 'Your decision', 'block · safe · dismiss', 'human'],
   };
   const EDGES = [['control', 'link', 'model'], ['link', 'check'], ['check', 'sandbox'], ['sandbox', 'explore', 'model'], ['sandbox', 'net'],
-    ['explore', 'destroy'], ['destroy', 'judge'], ['net', 'judge'], ['judge', 'summary', 'model'], ['summary', 'human']];
+    ['explore', 'destroy'], ['destroy', 'judge'], ['net', 'memory'], ['memory', 'judge'], ['judge', 'summary', 'model'], ['summary', 'human']];
   const $ = id => document.getElementById(id);
   const el = {};
   let loop = null, started = false;
@@ -94,7 +95,7 @@ const WF = (() => {
     if (!started) return;
     switch (ev.type) {
       case 'start':
-        state('control', 'active', 'scan started'); state('link', 'active', ev.url); flow('control', 'link'); head('Checking the address', true);
+        state('control', 'active', 'scan started'); state('link', 'active', ev.url); flow('control', 'link'); if (ev.swarm && ev.swarm.length > 1) state('sandbox', null, ev.swarm.length + ' visitors in parallel'); head('Checking the address', true);
         setTimeout(() => { flow('link', 'check'); settle('check'); state('check', 'active', 'checking…'); }, 500); break;
       case 'signals': state('check', 'active', ev.items[0].text); break;
       case 'sandbox':
@@ -111,10 +112,12 @@ const WF = (() => {
       case 'containment': flow('sandbox', 'net', true); state('net', 'bad', 'blocked ' + new URL(ev.url).hostname); break;
       case 'download': flow('sandbox', 'net', true); state('net', 'bad', 'download kept inside: ' + ev.filename); break;
       case 'verdict':
-        chatter(false); flow('destroy', 'judge'); flow('net', 'judge'); settle('judge');
+        chatter(false); flow('net', 'memory'); flow('memory', 'judge'); flow('destroy', 'judge'); settle('memory'); const m = ev.memory || {}; state('memory', (m.campaign || []).length ? 'bad' : 'active', (m.campaign || []).length ? 'campaign: ' + m.campaign.length + ' linked' : (m.seen_before || []).length ? 'seen ' + m.seen_before.length + 'x before' : 'new to us'); settle('judge');
         state('judge', ev.level === 'DANGEROUS' ? 'bad' : 'active', `${ev.level.toLowerCase()} · ${ev.score}/100`);
         setTimeout(() => { flow('judge', 'summary'); settle('summary'); state('summary', 'active', ev.summary); }, 900); break;
       case 'end': chatter(false); flow('summary', 'human'); settle('human'); state('human', 'active', 'waiting for you…'); head('Waiting for your decision', false); break;
+      case 'queued': head('Waiting in the queue: #' + ev.position, true); break;
+      case 'running': head('Starting…', true); break;
       case 'decision': state('human', 'done', 'you chose: ' + ev.choice); head('Done: you decided', false); break;
     }
   }
