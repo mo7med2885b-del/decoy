@@ -35,7 +35,9 @@ download, view invoice, claim). Choose done when the page has nothing more to re
 SUMMARY_SYSTEM = """You write the verdict for Decoy, a tool that opens suspicious links in a sealed sandbox.
 Write 2 or 3 short sentences in plain, everyday words for a non-technical person: what the link does and what to do.
 Use ONLY the facts in <EVIDENCE>. Do not add facts, numbers or advice beyond them. Do not change the verdict level.
-Never call a DANGEROUS or SUSPICIOUS link safe. Answer with the sentences only."""
+Never call a DANGEROUS or SUSPICIOUS link safe. If the level is LOOKS SAFE (the official site of a known service) or
+NO THREAT FOUND, say plainly what the page is (use page_title and page_host) and that nothing harmful was seen; for
+LOOKS SAFE say it is fine to open. Answer with the sentences only."""
 
 
 def make_canary() -> dict:
@@ -116,7 +118,9 @@ def model_plan(budget: Budget, state: dict, history: list[str]) -> dict | None:
 
 
 def model_summary(budget: Budget, v: dict) -> str | None:
-    facts = {"level": v["level"], "score": v["score"], "evidence": [e["text"] for e in v["evidence"]]}
+    facts = {"level": v["level"], "score": v["score"], "evidence": [e["text"] for e in v["evidence"]],
+             "checks_passed": v.get("checks", []), "page_title": v.get("page_title"), "page_host": v.get("page_host"),
+             "official": v.get("official")}
     text = llm.chat(budget, SUMMARY_SYSTEM, f"<EVIDENCE>\n{json.dumps(facts)}\n</EVIDENCE>", max_tokens=600)
     text = re.sub(r"\s+", " ", text or "").strip()
     if not text or len(text) > 700:
@@ -186,7 +190,10 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget) -> dict:
             page = state.get("page") or {}
             emit({"type": "observe", "step": step, "text": describe(state)})
             action, by = None, "rules"
-            if use_model:
+            if ev.official:
+                # Never type even fake data into a real service: on official sites Decoy only looks.
+                action = {"action": "done", "reason": "This is an official site, so I only look and never type anything."}
+            elif use_model:
                 try:
                     action = model_plan(budget, state, history)
                     by = llm.model_name()

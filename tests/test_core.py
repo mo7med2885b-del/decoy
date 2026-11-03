@@ -45,6 +45,18 @@ def test_quiet_page_has_no_threat():
     assert ev.verdict()["level"] == "NO THREAT FOUND"
 
 
+def test_official_youtube_link_looks_safe():
+    url = "https://www.youtube.com/watch?v=abc"
+    ev = Evidence(url, domain_signals(url))
+    ev.add_state({"url": url, "title": "Lentil soup - YouTube", "page": {"visible_text": "video"}, "network": []}, 0)
+    v = ev.verdict()
+    assert v["level"] == "LOOKS SAFE" and v["evidence"] == []
+    assert "YouTube" in v["checks"][0]
+    from decoy.verdict import template_summary
+    assert "real YouTube link" in template_summary(v) and "Lentil soup - YouTube" in template_summary(v)
+    assert not [s for s in domain_signals("https://y0utube-login.com/") if s["kind"] == "official_domain"]
+
+
 def test_disguised_download_is_dangerous():
     ev = Evidence("http://invoice-portal.test:8601/", [])
     ev.add_state({"url": "x", "page": {}, "network": [], "downloads": [{"filename": "Invoice.pdf.exe", "sha256": "a"}]}, 1)

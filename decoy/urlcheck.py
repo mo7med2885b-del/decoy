@@ -10,6 +10,12 @@ BRANDS = {"northbank": "northbank.test", "paypal": "paypal.com", "microsoft": "m
           "google": "google.com", "amazon": "amazon.com", "netflix": "netflix.com", "facebook": "facebook.com",
           "instagram": "instagram.com", "whatsapp": "whatsapp.com", "dhl": "dhl.com", "fedex": "fedex.com",
           "outlook": "outlook.com", "office365": "office.com", "binance": "binance.com", "coinbase": "coinbase.com"}
+# Official addresses of well-known services (host must equal or end with one of these).
+OFFICIAL = {d: b.title() for b, d in BRANDS.items() if not d.endswith(".test")}
+OFFICIAL.update({"youtube.com": "YouTube", "youtu.be": "YouTube", "wikipedia.org": "Wikipedia", "github.com": "GitHub",
+                 "linkedin.com": "LinkedIn", "x.com": "X", "twitter.com": "X", "reddit.com": "Reddit", "tiktok.com": "TikTok",
+                 "wa.me": "WhatsApp", "zoom.us": "Zoom", "dropbox.com": "Dropbox", "spotify.com": "Spotify",
+                 "office.com": "Microsoft", "live.com": "Microsoft", "gmail.com": "Google", "bing.com": "Microsoft"})
 LOOKALIKE = str.maketrans({"0": "o", "1": "l", "3": "e", "4": "a", "5": "s", "7": "t", "$": "s", "@": "a"})
 SHORTENERS = {"bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "cutt.ly", "rb.gy", "shorturl.at"}
 
@@ -45,10 +51,22 @@ def normalize(raw: str) -> str:
     return url
 
 
+def official_brand(host: str) -> tuple[str, str] | None:
+    """(brand, official domain) when the host really belongs to a well-known service."""
+    host = (host or "").lower()
+    for d, brand in OFFICIAL.items():
+        if host == d or host.endswith("." + d):
+            return brand, d
+    return None
+
+
 def domain_signals(url: str) -> list[dict]:
     """Facts about the address itself, before the page is even opened."""
     host = (urlsplit(url).hostname or "").lower()
     out = []
+    official = official_brand(host)
+    if official:
+        return [{"kind": "official_domain", "weight": 0, "text": f"This is the official {official[0]} address ({official[1]})."}]
     plain = host.translate(LOOKALIKE)
     for brand, official in BRANDS.items():
         if brand in plain and not (host == official or host.endswith("." + official)):

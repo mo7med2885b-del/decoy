@@ -29,12 +29,17 @@ class Evidence:
         self.urgency = False
         self.asked: set[str] = set()
         self.hosts_seen: list[str] = []
+        self.official = next((i["text"] for i in domain_signals if i["kind"] == "official_domain"), None)
+        self.last_title = ""
+        self.last_host = self.start_host
 
     def add_state(self, state: dict, step: int):
         page = state.get("page") or {}
         host = urlsplit(state.get("url", "")).hostname or ""
         if host and host not in self.hosts_seen:
             self.hosts_seen.append(host)
+        if state.get("title"):
+            self.last_title, self.last_host = state["title"].strip(), host or self.last_host
         for n in state.get("network", []):
             if n.get("canary_sent"):
                 self.leaks.setdefault(n["host"], set()).update(n["canary_sent"])
@@ -94,16 +99,35 @@ class Evidence:
         if len({site(h) for h in self.hosts_seen}) > 1:
             items.append({"kind": "redirect", "weight": 5, "text": "The link moved you through: " + " → ".join(self.hosts_seen[:5]) + "."})
         score = min(100, sum(i["weight"] for i in items))
-        level = "DANGEROUS" if score >= 60 else "SUSPICIOUS" if score >= 25 else "NO THREAT FOUND"
-        items.sort(key=lambda i: -i["weight"])
+        level = "DANGEROUS" if score >= 60 else "SUSPICIOUS" if score >= 25 else \
+            "LOOKS SAFE" if self.official and score < 10 else "NO THREAT FOUND"
+        items = sorted((i for i in items if i["weight"] > 0), key=lambda i: -i["weight"])
         got = [{"host": h, "data": sorted(k)} for h, k in self.leaks.items() if site(h) != start_site]
-        return {"level": level, "score": score, "evidence": items, "attacker_got": got,
+        # What was checked and passed (shown on clean results so the answer is concrete).
+        checks = [self.official or "The address does not imitate a well-known brand."] if not any(
+            i["kind"] == "lookalike_domain" for i in items) else []
+        if not self.leaks:
+            checks.append("No data we typed was sent to another site." if self.asked else "It did not ask for a password or card.")
+        if not self.downloads:
+            checks.append("It did not push any download.")
+        if not self.blocked:
+            checks.append("It did not try to reach private or cloud-secret addresses.")
+        if not self.hidden_orders:
+            checks.append("No hidden instructions for AI scanners.")
+        return {"level": level, "score": score, "evidence": items, "attacker_got": got, "checks": checks,
+                "page_title": self.last_title, "page_host": self.last_host, "official": self.official,
                 "blocked": self.blocked, "downloads": self.downloads}
 
 
 def template_summary(v: dict) -> str:
+    page = f"'{v['page_title']}'" if v.get("page_title") else "a normal page"
+    if v["level"] == "LOOKS SAFE":
+        brand = v["official"].split("official ", 1)[1].split(" address", 1)[0] if v.get("official") else "official"
+        return (f"This is a real {brand} link. We opened it in a sealed browser and it is a normal page: {page}. "
+                "It did not ask for your password, push a download or send data to other sites. Nothing to worry about.")
     if v["level"] == "NO THREAT FOUND":
-        return ("We opened the link in a sealed browser and saw nothing harmful during this visit: no password theft, "
-                "no downloads, no attempts to reach private addresses. That is not a guarantee; stay careful.")
+        return (f"We opened it in a sealed browser: it is {page} on {v.get('page_host') or 'this site'}. It did not ask for "
+                "a password or card, push a download or send data to other sites, so it looks fine. As always, do not type "
+                "passwords on a page you reached from a message.")
     lead = "Do not open this link." if v["level"] == "DANGEROUS" else "Be careful with this link."
     return lead + " " + v["evidence"][0]["text"] + " The reasons are listed below."
