@@ -163,3 +163,8 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
   .canary dd { font-size: 11.5px; }
 }
 @media (max-width: 400px) { .wn { width: 128px; padding: 6px 7px; } .wn small, .wn .live { margin-left: 26px; font-size: 9.5px; } .wn b i { width: 20px; height: 20px; } }
+
+/* the orange bubbles carry the Vultr logo */
+.wf-orb, .wn.core .ball { display: grid; place-items: center; }
+.wf-orb::after, .wn.core .ball::after { content: ""; display: block; width: 52%; height: 52%; background: #fff; filter: drop-shadow(0 1px 2px rgba(120, 40, 0, .5));
+  -webkit-mask: url(/static/assets/vultr.svg) center / contain no-repeat; mask: url(/static/assets/vultr.svg) center / contain no-repeat; }
