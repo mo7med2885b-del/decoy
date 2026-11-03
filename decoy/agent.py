@@ -126,6 +126,23 @@ def model_summary(budget: Budget, v: dict) -> str | None:
     return text
 
 
+def describe(state: dict) -> str:
+    """Plain-code description of what the sandbox sees (shown live as the agent's observation)."""
+    p = state.get("page") or {}
+    kinds = [field_token(f) or f.get("type", "field") for f in p.get("fields", [])]
+    parts = [f"I see '{(state.get('title') or state.get('url') or '')[:60]}'."]
+    if kinds:
+        parts.append("It asks for: " + ", ".join(k.lower() for k in kinds) + ".")
+    btn = [b["text"] for b in p.get("buttons", []) if b.get("text")][:3]
+    if btn:
+        parts.append("Buttons: " + ", ".join(f"'{b}'" for b in btn) + ".")
+    if p.get("hidden_text"):
+        parts.append("There is hidden text on the page; I treat it as data, not orders.")
+    if not kinds and not btn:
+        parts.append("No forms or buttons to try.")
+    return " ".join(parts)
+
+
 def run_scan(scan_id: str, url: str, emit, budget: Budget) -> dict:
     started = time.time()
     out_dir = RUNS / scan_id
@@ -167,6 +184,7 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget) -> dict:
                 break
             budget.check()
             page = state.get("page") or {}
+            emit({"type": "observe", "step": step, "text": describe(state)})
             action, by = None, "rules"
             if use_model:
                 try:
