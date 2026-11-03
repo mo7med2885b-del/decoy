@@ -132,3 +132,38 @@ def test_threat_memory_links_scams_that_share_a_drop_server(tmp_path):
     assert store.memory("http://n0rthbank-login.test/", [], exclude_id="aaa", path=db)["seen_before"] == []
     store.decide("aaa", "block", "n", db)
     assert store.get("aaa", db)["decision"] == "block" and len(store.history(5, db)) == 2
+
+
+def test_ask_never_calls_a_dangerous_link_safe_and_answers_from_evidence():
+    from decoy import ask
+    v = {"level": "DANGEROUS", "score": 100, "summary": "Do not open this link.", "evidence": [{"text": "It stole a password."}],
+         "attacker_got": [{"host": "drop-zone.test", "data": ["PASSWORD"]}], "swarm": [], "memory": {}}
+    assert "No." in ask.rules_answer("Is it safe to open?", v)
+    assert "drop-zone.test" in ask.rules_answer("What did the attacker get?", v)
+    assert ask.answer("", v)["by"] == "rules"
+
+
+def test_qr_roundtrip_and_bad_pictures():
+    import cv2, numpy as np
+    from decoy import qr
+    enc = cv2.QRCodeEncoder_create().encode("http://n0rthbank-login.test:8601/")
+    img = cv2.resize(cv2.copyMakeBorder(enc, 20, 20, 20, 20, cv2.BORDER_CONSTANT, value=255), None, fx=6, fy=6, interpolation=cv2.INTER_NEAREST)
+    ok, png = cv2.imencode(".png", img)
+    assert qr.decode(png.tobytes()) == "http://n0rthbank-login.test:8601/"
+    import pytest
+    with pytest.raises(qr.BadImage):
+        qr.decode(b"not a picture")
+
+
+def test_rate_limit_blocks_the_16th_scan_in_an_hour():
+    import server
+    from fastapi import HTTPException
+
+    class R:  # minimal request stand-in
+        client = type("c", (), {"host": "9.9.9.9"})()
+        headers = {}
+    for _ in range(15):
+        server.rate_limit(R(), "scan-test", 15)
+    import pytest
+    with pytest.raises(HTTPException):
+        server.rate_limit(R(), "scan-test", 15)
