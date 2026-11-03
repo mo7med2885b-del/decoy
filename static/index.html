@@ -88,6 +88,7 @@
 
         <section class="console" id="console">
           <div class="chead"><span class="orb" id="orb"></span><div><b>Agent console</b><small id="cstate">Idle</small></div></div>
+          <div class="flow" id="flow"><svg id="flowsvg" aria-hidden="true"></svg>
           <ol class="chain" id="chain">
             <li data-n="check"><i>⌁</i>Address check<small>code</small></li>
             <li data-n="sandbox"><i><b class="vlogo"></b></i>Fresh sandbox<small>Docker on Vultr</small></li>
@@ -95,7 +96,7 @@
             <li data-n="judge"><i>⚖</i>Evidence judge<small>code</small></li>
             <li data-n="destroy"><i>✕</i>Sandbox destroyed<small>lifecycle</small></li>
             <li data-n="you"><i>✓</i>Your decision<small>human</small></li>
-          </ol>
+          </ol></div>
           <div class="stats">
             <div><b id="sSteps">0</b><small>Pages seen</small></div>
             <div><b id="sBlocked">0</b><small>Blocked</small></div>

@@ -33,6 +33,55 @@ function nextLine() {
   })();
 }
 
+/* ---------- workflow graph: nodes joined by lines; lines glow and packets travel when data moves ---------- */
+const EDGES = [['check', 'sandbox'], ['sandbox', 'explore'], ['explore', 'judge'], ['judge', 'destroy'], ['destroy', 'you']];
+const NS = 'http://www.w3.org/2000/svg';
+function nodeEl(n) { return document.querySelector(`#chain li[data-n="${n}"]`); }
+function anchor(a, b) {  // edge from the facing sides of two nodes, relative to the flow box
+  const f = $('flow').getBoundingClientRect(), r1 = nodeEl(a).getBoundingClientRect(), r2 = nodeEl(b).getBoundingClientRect();
+  const c1 = {x: r1.left + r1.width / 2 - f.left, y: r1.top + r1.height / 2 - f.top}, c2 = {x: r2.left + r2.width / 2 - f.left, y: r2.top + r2.height / 2 - f.top};
+  if (Math.abs(c1.y - c2.y) < 8) {
+    const dir = c2.x > c1.x ? 1 : -1;
+    return [{x: c1.x + dir * r1.width / 2, y: c1.y}, {x: c2.x - dir * r2.width / 2, y: c2.y}];
+  }
+  const dir = c2.y > c1.y ? 1 : -1;
+  return [{x: c1.x, y: c1.y + dir * r1.height / 2}, {x: c2.x, y: c2.y - dir * r2.height / 2}];
+}
+function drawEdges() {
+  const svg = $('flowsvg'); svg.innerHTML = '';
+  EDGES.forEach(([a, b]) => {
+    const [p, q] = anchor(a, b);
+    const p2 = document.createElementNS(NS, 'path');
+    const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+    p2.setAttribute('d', Math.abs(p.y - q.y) < 8 ? `M${p.x},${p.y} L${q.x},${q.y}` : `M${p.x},${p.y} C${p.x},${my} ${q.x},${my} ${q.x},${q.y}`);
+    p2.setAttribute('class', 'edge'); p2.dataset.e = a + '>' + b;
+    svg.appendChild(p2);
+  });
+}
+function edge(a, b) { return document.querySelector(`#flowsvg .edge[data-e="${a}>${b}"]`); }
+function edgeState(a, b, state) {
+  const e = edge(a, b); if (!e) return;
+  e.classList.remove('on', 'done'); if (state) e.classList.add(state);
+}
+function packet(a, b, bad, reverse) {  // a dot travels along the line (reverse = command going back to the sandbox)
+  const e = edge(a, b); if (!e) return;
+  const len = e.getTotalLength(), dot = document.createElementNS(NS, 'circle');
+  dot.setAttribute('r', 4.5); dot.setAttribute('class', 'pkt' + (bad ? ' bad' : ''));
+  $('flowsvg').appendChild(dot);
+  const t0 = performance.now(), dur = 650;
+  (function step(t) {
+    let k = Math.min(1, (t - t0) / dur); if (reverse) k = 1 - k;
+    const pt = e.getPointAtLength(k * len); dot.setAttribute('cx', pt.x); dot.setAttribute('cy', pt.y);
+    if ((t - t0) < dur) requestAnimationFrame(step); else dot.remove();
+  })(t0);
+}
+let pulseTimer = null;
+function agentLoop(on) {  // while the explorer works, data flows sandbox -> explorer and commands flow back
+  clearInterval(pulseTimer);
+  if (on) pulseTimer = setInterval(() => { packet('sandbox', 'explore'); setTimeout(() => packet('sandbox', 'explore', false, true), 330); }, 1300);
+}
+window.addEventListener('resize', drawEdges);
+
 /* ---------- progress UI ---------- */
 function stepTo(n) {
   document.querySelectorAll('#steps li').forEach(li => {
@@ -45,8 +94,16 @@ function node(name, state) {
   const li = document.querySelector(`#chain li[data-n="${name}"]`);
   if (!li) return;
   if (state === 'active') document.querySelectorAll('#chain li.active').forEach(x => { x.classList.remove('active'); x.classList.add('done'); });
+  const wasIdle = !li.classList.contains('active') && !li.classList.contains('done');
   li.classList.remove('active', 'done');
   if (state) li.classList.add(state);
+  if (state === 'active' && wasIdle) {  // the line into this node lights up and a packet runs along it
+    const i = EDGES.findIndex(([, b]) => b === name);
+    if (i > 0) { edgeState(EDGES[i - 1][0], EDGES[i - 1][1], 'done'); }
+    if (i >= 0) { edgeState(EDGES[i][0], EDGES[i][1], 'on'); packet(EDGES[i][0], EDGES[i][1], false); setTimeout(() => edgeState(EDGES[i][0], EDGES[i][1], 'done'), 1500); }
+  }
+  if (name === 'explore') agentLoop(state === 'active');
+  if (state === 'active' && name !== 'explore') agentLoop(false);
 }
 function stat(id, v, hot) { $(id).textContent = v; $(id).parentElement.classList.toggle('hot', !!hot); }
 
@@ -95,6 +152,7 @@ function reset() {
   ['l-created', 'l-running', 'l-destroyed'].forEach(id => $(id).className = '');
   $('seal').className = 'seal'; $('seal').textContent = 'STARTING';
   document.querySelectorAll('#chain li').forEach(li => li.className = '');
+  agentLoop(false); drawEdges();
   Object.keys(count).forEach(k => count[k] = 0);
   stat('sSteps', 0); stat('sBlocked', 0); stat('sLeaks', 0); stat('sCalls', 0);
   queue.length = 0;
@@ -168,6 +226,9 @@ function handle(ev) {
       (ev.downloads || []).forEach(d => trace(`The page pushed a download: ${d.filename}. It stays inside the sandbox.`, 'download · sandbox', 'bad'));
       if (ev.note) trace(ev.note, 'sandbox');
       break;
+    case 'frame':  // live view of the sandbox browser: cursor moving and text being typed
+      $('shot').src = ev.shot;
+      break;
     case 'download':
       trace(`The page pushed a download: ${ev.filename}. It stays inside the sandbox.`, 'download · sandbox', 'bad');
       break;
@@ -181,6 +242,8 @@ function handle(ev) {
       break;
     }
     case 'containment': {
+      packet('sandbox', 'explore', true); edgeState('sandbox', 'explore', 'on'); edge('sandbox', 'explore')?.classList.add('bad');
+      setTimeout(() => edge('sandbox', 'explore')?.classList.remove('bad'), 900);
       count.blocked++; stat('sBlocked', count.blocked, true);
       if (count.blocked === 1) $('blocked').innerHTML = '';
       const same = [...$('blocked').children].find(x => x.dataset.url === ev.url);
@@ -204,6 +267,7 @@ function handle(ev) {
       showVerdict(ev);
       break;
     case 'end':
+      agentLoop(false);
       source && source.close(); $('go').disabled = false;
       $('console').classList.remove('live'); $('cstate').textContent = 'Finished · waiting for your decision';
       node('you', 'active');

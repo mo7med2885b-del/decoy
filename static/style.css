@@ -133,7 +133,19 @@ body[data-risk="clean"] .ring-fg { stroke: var(--green); }
 .orb { width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #c9fff6, var(--con-glow) 45%, #1d6c63 100%); box-shadow: 0 0 0 0 rgba(95, 212, 196, .5); flex: none; }
 .console.live .orb { animation: glow 1.4s infinite; }
 @keyframes glow { 70% { box-shadow: 0 0 0 12px rgba(95, 212, 196, 0); } 100% { box-shadow: 0 0 0 0 rgba(95, 212, 196, 0); } }
-.chain { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.flow { position: relative; }
+.flow svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.flow .edge { fill: none; stroke: var(--con-line); stroke-width: 2; }
+.flow .edge.on { stroke: var(--con-glow); stroke-dasharray: 6 7; animation: dash .7s linear infinite; filter: drop-shadow(0 0 4px rgba(95, 212, 196, .7)); }
+.flow .edge.done { stroke: #2f6a63; }
+.flow .edge.bad.on { stroke: #ff8a7e; filter: drop-shadow(0 0 4px rgba(255, 138, 126, .7)); }
+.flow .pkt { fill: #c9fff6; filter: drop-shadow(0 0 5px #5fd4c4); }
+.flow .pkt.bad { fill: #ffb3aa; filter: drop-shadow(0 0 5px #ff6b5e); }
+@keyframes dash { to { stroke-dashoffset: -26; } }
+.chain { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px 26px; position: relative; }
+.chain li[data-n="judge"] { grid-column: 3; grid-row: 2; }
+.chain li[data-n="destroy"] { grid-column: 2; grid-row: 2; }
+.chain li[data-n="you"] { grid-column: 1; grid-row: 2; }
 .chain li { background: var(--con2); border: 1px solid var(--con-line); border-radius: 12px; padding: 7px 9px; font-size: 12px; font-weight: 700; display: grid; grid-template-columns: auto 1fr; column-gap: 7px; align-items: center; color: var(--con-muted); transition: all .3s; }
 .chain li i { font-style: normal; grid-row: span 2; width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; background: #0a1517; font-size: 13px; }
 .chain li small { font-size: 10.5px; font-weight: 600; opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
