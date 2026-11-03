@@ -1,0 +1,16 @@
+# secrets
+.env
+
+# local-only notes (they live outside this repo; second safety net)
+CLAUDE.md
+AGENTS.md
+HACKATHON.md
+docs/
+
+# runtime data
+runs/
+ledger.json
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
