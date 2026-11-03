@@ -8,6 +8,7 @@ URGENCY = re.compile(r"\b(locked|suspended|within 24 hours|verify (your|my)|unus
                      r"confirm your (card|identity)|act now|final notice)\b", re.I)
 AI_ORDER = re.compile(r"\b(ignore (all |any )?previous instructions|ai (assistant|agent)s?|security scanners?|"
                       r"report (this|it) (site )?as safe|you are an? (ai|assistant))\b", re.I)
+SHORT_HOSTS = {"bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "cutt.ly", "rb.gy", "go-short.test"}
 LABELS = {"EMAIL": "email address", "PASSWORD": "password", "CARD": "card number", "CVV": "card security code",
           "NAME": "full name", "PHONE": "phone number"}
 
@@ -32,6 +33,9 @@ class Evidence:
         self.official = next((i["text"] for i in domain_signals if i["kind"] == "official_domain"), None)
         self.last_title = ""
         self.last_host = self.start_host
+        self.redirects: list[dict] = []
+        self.first_sig: tuple | None = None   # what this visitor saw first: (title, asked for a password)
+        self.extra: list[dict] = []           # evidence added by the swarm (cloaking)
 
     def add_state(self, state: dict, step: int):
         page = state.get("page") or {}
@@ -40,6 +44,10 @@ class Evidence:
             self.hosts_seen.append(host)
         if state.get("title"):
             self.last_title, self.last_host = state["title"].strip(), host or self.last_host
+        if state.get("redirects") and len(state["redirects"]) > len(self.redirects):
+            self.redirects = list(state["redirects"])
+        if self.first_sig is None and (state.get("title") or page.get("fields") is not None):
+            self.first_sig = ((state.get("title") or "").strip().lower(), bool(page.get("has_password")))
         for n in state.get("network", []):
             if n.get("canary_sent"):
                 self.leaks.setdefault(n["host"], set()).update(n["canary_sent"])
@@ -62,8 +70,27 @@ class Evidence:
             if "cc-number" in t or "card" in t:
                 self.asked.add("CARD")
 
+    def absorb(self, other: "Evidence"):
+        """Merge what another visitor of the swarm saw (worst case wins: one visitor being robbed is enough)."""
+        for dest, kinds in other.leaks.items():
+            self.leaks.setdefault(dest, set()).update(kinds)
+        for b in other.blocked:
+            if not any(x["url"] == b["url"] for x in self.blocked):
+                self.blocked.append(b)
+        for d in other.downloads:
+            if not any(x.get("sha256") == d.get("sha256") and x.get("filename") == d.get("filename") for x in self.downloads):
+                self.downloads.append(d)
+        self.hidden_orders += [h for h in other.hidden_orders if h not in self.hidden_orders]
+        self.urgency = self.urgency or other.urgency
+        self.asked |= other.asked
+        for h in other.hosts_seen:
+            if h not in self.hosts_seen:
+                self.hosts_seen.append(h)
+        if len(other.redirects) > len(self.redirects):
+            self.redirects = other.redirects
+
     def verdict(self) -> dict:
-        items = list(self.items)
+        items = list(self.items) + list(self.extra)
         start_site = site(self.start_host)
         for dest, kinds in self.leaks.items():
             what = ", ".join(LABELS.get(k, k.lower()) for k in sorted(kinds))
@@ -96,8 +123,17 @@ class Evidence:
             items.append({"kind": "pressure", "weight": 10, "text": "The page uses pressure (locked account, deadline) to rush you."})
         if "CARD" in self.asked and any(i["kind"] == "lookalike_domain" for i in items):
             items.append({"kind": "card_on_lookalike", "weight": 15, "text": "A look-alike site asks for your card number."})
-        if len({site(h) for h in self.hosts_seen}) > 1:
-            items.append({"kind": "redirect", "weight": 5, "text": "The link moved you through: " + " → ".join(self.hosts_seen[:5]) + "."})
+        chain = []
+        for r in self.redirects:
+            for u in (r.get("from"), r.get("to")):
+                h = urlsplit(u or "").hostname
+                if h and (not chain or chain[-1] != h):
+                    chain.append(h)
+        if len({site(h) for h in chain or self.hosts_seen}) > 1:
+            hops = chain or self.hosts_seen
+            short = any(h in SHORT_HOSTS or len(h) <= 9 for h in hops[:1]) and len(hops) > 1
+            items.append({"kind": "redirect", "weight": 15 if short else 8,
+                          "text": ("A link that hides its destination: " if short else "The link moved you through other sites: ") + " → ".join(hops[:5]) + "."})
         score = min(100, sum(i["weight"] for i in items))
         level = "DANGEROUS" if score >= 60 else "SUSPICIOUS" if score >= 25 else \
             "LOOKS SAFE" if self.official and score < 10 else "NO THREAT FOUND"
@@ -131,3 +167,24 @@ def template_summary(v: dict) -> str:
                 "passwords on a page you reached from a message.")
     lead = "Do not open this link." if v["level"] == "DANGEROUS" else "Be careful with this link."
     return lead + " " + v["evidence"][0]["text"] + " The reasons are listed below."
+
+
+def cloaking(personas: list[dict]) -> dict | None:
+    """Compare what each visitor of the swarm saw first. A page that shows different things to different
+    visitors (for example a harmless page to a security bot and a login form to a person) is cloaking.
+    personas: [{"name", "sig": (title, asked_password) or None}]"""
+    seen = [p for p in personas if p.get("sig")]
+    if len(seen) < 2:
+        return None
+    pw = {p["name"] for p in seen if p["sig"][1]}
+    if pw and len(pw) < len(seen):
+        quiet = [p["name"] for p in seen if p["name"] not in pw]
+        return {"kind": "cloaking", "weight": 45,
+                "text": f"The page showed different things to different visitors: {', '.join(sorted(pw))} saw a login form, "
+                        f"but {', '.join(quiet)} saw a harmless page. Scam pages do this to hide from security tools."}
+    titles = {p["sig"][0] for p in seen if p["sig"][0]}
+    if len(titles) > 1:
+        return {"kind": "cloaking", "weight": 20,
+                "text": "The page showed a different title to different visitors (" +
+                        "; ".join(f"{p['name']}: '{p['sig'][0][:40]}'" for p in seen) + "), which can be a sign of cloaking."}
+    return None

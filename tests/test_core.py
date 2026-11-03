@@ -100,3 +100,35 @@ def test_daily_dollar_cap(tmp_path, monkeypatch):
     b.record(1_000_000, 0)
     with pytest.raises(guard.BudgetExceeded):
         guard.Budget(ledger=tmp_path / "ledger.json").check()
+
+
+def test_cloaking_login_form_hidden_from_a_bot():
+    from decoy.verdict import cloaking
+    c = cloaking([{"name": "Careless employee", "sig": ("northbank - sign in", True)}, {"name": "Security bot", "sig": ("daily recipes", False)}])
+    assert c and c["weight"] >= 40 and "Security bot" in c["text"]
+    assert cloaking([{"name": "A", "sig": ("recipes", False)}, {"name": "B", "sig": ("recipes", False)}]) is None
+    assert cloaking([{"name": "A", "sig": ("recipes", False)}]) is None
+
+
+def test_swarm_merge_and_redirect_chain():
+    lead = Evidence("http://go-short.test/x", [])
+    scout = Evidence("http://go-short.test/x", [])
+    scout.add_state({"url": "http://n0rthbank-login.test/", "title": "t", "page": {}, "network": [
+        {"url": "http://drop-zone.test/c", "host": "drop-zone.test", "canary_sent": ["PASSWORD"]}],
+        "redirects": [{"from": "http://go-short.test/x", "to": "http://n0rthbank-login.test/", "status": 302}]}, 0)
+    lead.absorb(scout)
+    v = lead.verdict()
+    assert v["attacker_got"] and any(i["kind"] == "redirect" for i in v["evidence"])
+
+
+def test_threat_memory_links_scams_that_share_a_drop_server(tmp_path):
+    from decoy import store
+    db = tmp_path / "t.db"
+    v = {"level": "DANGEROUS", "score": 100, "summary": "s", "evidence": [{"text": "x", "kind": "k"}], "attacker_got": [{"host": "drop-zone.test", "data": ["PASSWORD"]}]}
+    store.save("aaa", "http://n0rthbank-login.test/", v, db)
+    store.save("bbb", "http://paypa1-help.test/", v, db)
+    m = store.memory("http://paypa1-help.test/", ["drop-zone.test"], exclude_id="bbb", path=db)
+    assert m["campaign"] and m["campaign"][0]["shared_server"] == "drop-zone.test"
+    assert store.memory("http://n0rthbank-login.test/", [], exclude_id="aaa", path=db)["seen_before"] == []
+    store.decide("aaa", "block", "n", db)
+    assert store.get("aaa", db)["decision"] == "block" and len(store.history(5, db)) == 2
