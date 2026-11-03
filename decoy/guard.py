@@ -1,4 +1,4 @@
-"""Budget guard for model calls. Never weaken it.
+﻿"""Budget guard for model calls. Never weaken it.
 
 Per scan: max calls and a wall-clock deadline. Per day: max calls and max dollars (ledger on disk).
 Global: a kill switch and a limit on parallel scans.
@@ -56,7 +56,7 @@ class Budget:
             day = _read_day(self.ledger)
         if day["calls"] >= env_int("MAX_CALLS_PER_DAY", 300):
             raise BudgetExceeded("daily call cap reached")
-        if day["usd"] >= env_float("MAX_USD_PER_DAY", 2.0):
+        if day["usd"] >= env_float("MAX_USD_PER_DAY", 1.0):
             raise BudgetExceeded("daily spend cap reached")
 
     def record(self, tokens_in: int, tokens_out: int) -> float:

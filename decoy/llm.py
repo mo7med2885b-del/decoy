@@ -1,4 +1,4 @@
-"""Vultr Serverless Inference client (OpenAI-compatible). The key stays on the control plane only."""
+﻿"""Vultr Serverless Inference client (OpenAI-compatible). The key stays on the control plane only."""
 import json
 import re
 
@@ -13,7 +13,7 @@ def available() -> bool:
 
 
 def model_name() -> str:
-    return env("DECOY_MODEL", "glm-5.3") if available() else "rule-based (no key)"
+    return env("DECOY_MODEL", "glm-5.3-flash") if available() else "rule-based (no key)"
 
 
 def chat(budget: Budget, system: str, user: str, image_b64: str | None = None, max_tokens: int = 1500,
@@ -23,7 +23,7 @@ def chat(budget: Budget, system: str, user: str, image_b64: str | None = None, m
     if image_b64:
         content = [{"type": "text", "text": user},
                    {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + image_b64}}]
-    body = {"model": model or env("DECOY_MODEL", "glm-5.3"), "max_tokens": max_tokens, "temperature": 0.2,
+    body = {"model": model or env("DECOY_MODEL", "glm-5.3-flash"), "max_tokens": max_tokens, "temperature": 0.2,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}]}
     timeout = max(5.0, min(60.0, budget.time_left()))
     r = httpx.post(env("VULTR_INFERENCE_URL", "https://api.vultrinference.com/v1").rstrip("/") + "/chat/completions",
