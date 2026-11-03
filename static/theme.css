@@ -201,3 +201,76 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .rescan { border: 0; background: rgba(45, 123, 255, .18); color: #9ec3ff; border-radius: 99px; width: 28px; height: 28px; cursor: pointer; font-size: 15px; }
 @media (max-width: 900px) { .swarm { grid-template-columns: 1fr; } .sw { flex-direction: row; flex-wrap: wrap; } .swimg { width: 46%; } }
 @media (max-width: 700px) { .askrow { flex-direction: column; } .askrow .btn { width: 100%; } }
+
+/* ---- light mode: same three colours (midnight text/frame, electric blue, loop orange) on a soft white sky ---- */
+.themebtn { border: 0; cursor: pointer; width: 36px; height: 36px; border-radius: 50%; background: rgba(14, 22, 44, .65); color: #dbe7ff; font-size: 17px; line-height: 1; }
+.themebtn:hover { box-shadow: 0 0 0 2px var(--blue); }
+:root[data-theme="light"] {
+  --ink: #0b1530; --muted: #56658a; --line: #d2dcf1; --frame: #dfe8fb; --canvas: #f3f6ff; --card: #ffffff; --card2: #edf2ff;
+  --blue: #1f63f0; --blue-glow: #2d6bff; --blue-soft: rgba(31, 99, 240, .12); --orange: #f26a0a; --orange-soft: rgba(242, 106, 10, .12);
+  --accent: #2d6bff; --amber: #d9730d; --amber-soft: rgba(217, 115, 13, .14);
+  --red: var(--orange); --red-soft: var(--orange-soft); --green: var(--blue); --green-soft: var(--blue-soft);
+  color-scheme: light;
+}
+:root[data-theme="light"] body[data-risk="danger"] { --accent: #f26a0a; }
+:root[data-theme="light"] body[data-risk="warn"] { --accent: #ff9a45; }
+:root[data-theme="light"] body { background: #eef3ff; color: var(--ink); }
+:root[data-theme="light"] body::before { background:
+  radial-gradient(38% 56% at 50% 40%, color-mix(in srgb, var(--accent) 34%, transparent) 0, transparent 72%),
+  radial-gradient(75% 36% at 50% 108%, rgba(255, 140, 50, .5) 0, rgba(255, 120, 40, .2) 45%, transparent 75%),
+  linear-gradient(180deg, #f8faff 0%, #e8efff 60%, #fdeede 100%); }
+:root[data-theme="light"] body::after { background: repeating-linear-gradient(90deg, rgba(31, 99, 240, .06) 0 1px, transparent 1px 6px); }
+:root[data-theme="light"] .device { background: rgba(255, 255, 255, .5); box-shadow: 0 30px 80px rgba(30, 60, 140, .18), inset 0 0 0 1px rgba(31, 99, 240, .12); }
+:root[data-theme="light"] .titletab, :root[data-theme="light"] .canvas { background: rgba(255, 255, 255, .35); }
+:root[data-theme="light"] .titletab::after { background: radial-gradient(circle at 100% 0, transparent 28px, rgba(255, 255, 255, .35) 29px); }
+:root[data-theme="light"] .pill { background: rgba(255, 255, 255, .85); color: #2a3b66; }
+:root[data-theme="light"] .pill.ok { background: var(--blue-soft); color: #174ec4; }
+:root[data-theme="light"] .pill.warn { background: var(--orange-soft); color: #b24a00; }
+:root[data-theme="light"] .pill.vultr { background: #0b1530; color: #fff; }
+:root[data-theme="light"] .themebtn { background: rgba(255, 255, 255, .9); color: #0b1530; box-shadow: inset 0 0 0 1px #d2dcf1; }
+:root[data-theme="light"] .card, :root[data-theme="light"] .wfpanel { background: rgba(255, 255, 255, .78); box-shadow: inset 0 0 0 1px rgba(31, 99, 240, .1), 0 12px 34px rgba(30, 60, 140, .1); }
+:root[data-theme="light"] .sheet, :root[data-theme="light"] .wf-stats div, :root[data-theme="light"] .limits span, :root[data-theme="light"] .life li,
+:root[data-theme="light"] .wfpanel .trace, :root[data-theme="light"] .sw, :root[data-theme="light"] .hist li, :root[data-theme="light"] .askout,
+:root[data-theme="light"] .chrome, :root[data-theme="light"] .strip { background: rgba(236, 242, 255, .85); }
+:root[data-theme="light"] .intake h2 span { color: #26365f; } :root[data-theme="light"] .intake h2 em { color: var(--blue); }
+:root[data-theme="light"] .sub { color: #4a5a82; }
+:root[data-theme="light"] .ask input, :root[data-theme="light"] .decide input, :root[data-theme="light"] .askrow input { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1.5px #c5d2ee; }
+:root[data-theme="light"] .ask input::placeholder, :root[data-theme="light"] .decide input::placeholder { color: #8a97b8; }
+:root[data-theme="light"] .chipset button, :root[data-theme="light"] .btn, :root[data-theme="light"] .qrbtn { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1.5px #c5d2ee; }
+:root[data-theme="light"] .btn.primary { background: linear-gradient(180deg, #3b7bff, #1f63f0); color: #fff; box-shadow: 0 8px 22px rgba(31, 99, 240, .35); }
+:root[data-theme="light"] .btn.danger { background: linear-gradient(180deg, #ff8a35, #f26a0a); color: #fff; }
+:root[data-theme="light"] .steps li b { background: #fff; color: var(--muted); }
+:root[data-theme="light"] .steps li.done b { background: var(--blue-soft); color: var(--blue); }
+:root[data-theme="light"] .steps li.on b { background: var(--blue); color: #fff; }
+:root[data-theme="light"] .addr { background: #fff; color: #26365f; } :root[data-theme="light"] .seal { background: #fff; }
+:root[data-theme="light"] #evidence .w { background: #fff; }
+:root[data-theme="light"] .memory { background: rgba(31, 99, 240, .1); color: #1d3a82; }
+:root[data-theme="light"] .swarmwarn { color: #9a3f00; } :root[data-theme="light"] .swchip i { background: rgba(11, 21, 48, .07); color: #26365f; }
+:root[data-theme="light"] .swchip i.bad, :root[data-theme="light"] .hist i.bad, :root[data-theme="light"] .hist em { background: var(--orange-soft); color: #b24a00; }
+:root[data-theme="light"] .swchip i.ok, :root[data-theme="light"] .hist i.ok { background: var(--blue-soft); color: #174ec4; }
+:root[data-theme="light"] .lootbox { background: var(--orange-soft); } :root[data-theme="light"] .lootbox b { color: #c4560a; }
+:root[data-theme="light"] .blocked li b { color: #c4560a; } :root[data-theme="light"] .err { color: #c4560a; }
+:root[data-theme="light"] .foot { color: #6b7aa0; }
+:root[data-theme="light"] .riskbar { color: #fff; }
+:root[data-theme="light"] .wf-head b, :root[data-theme="light"] .wf-brand span { color: var(--ink); }
+:root[data-theme="light"] .wf-brand { background: rgba(236, 242, 255, .9); box-shadow: inset 0 0 0 1px #d2dcf1; }
+:root[data-theme="light"] .wf-brand .vlogo { background: #1f63f0; }
+:root[data-theme="light"] .wf-cancel { background: #fff; color: var(--ink); border-color: #c5d2ee; }
+:root[data-theme="light"] .wn { background: rgba(255, 255, 255, .92); border-color: #c5d2ee; color: var(--ink); box-shadow: 0 4px 12px rgba(30, 60, 140, .1); }
+:root[data-theme="light"] .wn b i { background: #e8eefc; } :root[data-theme="light"] .wn.model { border-color: #8fb0f5; }
+:root[data-theme="light"] .wn.human { background: #fff3e6; border-color: #f0b784; } :root[data-theme="light"] .wn.core { border-color: #f0a566; }
+:root[data-theme="light"] .wn.done { border-color: #7ea4f2; }
+:root[data-theme="light"] .wn .live { color: var(--blue); } :root[data-theme="light"] .wn.bad .live { color: #c4560a; }
+:root[data-theme="light"] .we { stroke: #c5d2ee; } :root[data-theme="light"] .we.model { stroke: #9cbbf6; } :root[data-theme="light"] .we.done { stroke: #7ea4f2; }
+:root[data-theme="light"] .wfpanel .trace li.bad .txt { color: #c4560a; } :root[data-theme="light"] .wfpanel .trace-head { color: var(--blue); }
+:root[data-theme="light"] .wf-legend .c { background: #8a97b8; }
+:root[data-theme="light"] .vsum { color: var(--ink); }
+:root[data-theme="light"] * { scrollbar-color: rgba(31, 99, 240, .3) transparent; }
+:root[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(31, 99, 240, .28); background-clip: padding-box; }
+@media (max-width: 700px) { :root[data-theme="light"] .device { background: rgba(255, 255, 255, .6); } }
+:root[data-theme="light"] .seal { color: #56658a; box-shadow: inset 0 0 0 1px #d2dcf1; }
+:root[data-theme="light"] .seal.on { background: var(--blue-soft); color: #174ec4; }
+:root[data-theme="light"] .seal.gone { background: var(--blue); color: #fff; }
+:root[data-theme="light"] .seal.dev, :root[data-theme="light"] .limits span.warn { background: var(--orange-soft); color: #b24a00; }
+:root[data-theme="light"] .life li.on { background: var(--blue); color: #fff; } :root[data-theme="light"] .life li.gone { background: var(--blue-soft); color: #174ec4; }
+:root[data-theme="light"] .rescan { background: var(--blue-soft); color: var(--blue); }

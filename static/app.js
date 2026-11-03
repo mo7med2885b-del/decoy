@@ -147,6 +147,11 @@ async function init() {
     }
   } catch (e) {}
   $('form').onsubmit = e => { e.preventDefault(); start(); };
+  $('theme').onclick = () => {
+    const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('decoy-theme', next); } catch (e) {}
+  };
   $('cancel').onclick = () => scanId && fetch(`/api/scan/${scanId}/cancel`, {method: 'POST'});
   document.querySelectorAll('.decide button').forEach(b => b.onclick = () => decide(b.dataset.d));
 }
