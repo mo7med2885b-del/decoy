@@ -1,4 +1,4 @@
-"""Decoy sandbox runner. Runs INSIDE the sealed container.
+﻿"""Decoy sandbox runner. Runs INSIDE the sealed container.
 
 It drives one headless Chromium and talks to the control plane over stdin/stdout,
 one JSON object per line. It holds no API keys, no credentials except the fake
@@ -166,7 +166,7 @@ class Runner:
 
     # ---- observation -------------------------------------------------------
     def state(self, note=None):
-        time.sleep(0.4)
+        self.page.wait_for_timeout(400)  # lets the browser deliver events (time.sleep would not)
         info = {}
         for _ in range(4):  # the page may still be navigating (scripts redirect after a submit)
             try:
@@ -178,7 +178,7 @@ class Runner:
                 break
             except Exception as e:
                 info = {"error": str(e)[:120]}
-                time.sleep(0.8)
+                self.page.wait_for_timeout(800)
         try:
             shot = base64.b64encode(self.page.screenshot(type="jpeg", quality=62)).decode()
         except Exception:
@@ -207,7 +207,7 @@ class Runner:
                 self.page.keyboard.press("Enter")
         except Exception as e:
             return self.state(note=f"submit failed: {str(e)[:100]}")
-        time.sleep(1.2)
+        self.page.wait_for_timeout(1500)
         return self.state()
 
     def click(self, msg):
@@ -215,7 +215,7 @@ class Runner:
             self.page.click(f'[data-decoy-id="{int(msg["id"])}"]', timeout=3000)
         except Exception as e:
             return self.state(note=f"click failed: {str(e)[:100]}")
-        time.sleep(1.2)
+        self.page.wait_for_timeout(1500)
         return self.state()
 
     def close(self):

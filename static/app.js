@@ -168,6 +168,9 @@ function handle(ev) {
       (ev.downloads || []).forEach(d => trace(`The page pushed a download: ${d.filename}. It stays inside the sandbox.`, 'download · sandbox', 'bad'));
       if (ev.note) trace(ev.note, 'sandbox');
       break;
+    case 'download':
+      trace(`The page pushed a download: ${ev.filename}. It stays inside the sandbox.`, 'download · sandbox', 'bad');
+      break;
     case 'observe':
       trace(ev.text, 'explorer · sees', 'ai');
       break;

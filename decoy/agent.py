@@ -1,4 +1,4 @@
-"""The Decoy agent loop: check the link, open it in a fresh sandbox, act like a curious person
+﻿"""The Decoy agent loop: check the link, open it in a fresh sandbox, act like a curious person
 (click, type FAKE data), record everything, destroy the sandbox, then judge in code.
 
 The model only proposes the next action; code validates it. The model can never type anything
@@ -198,6 +198,14 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget) -> dict:
                 action, by = rules_plan(page, tried), "rules"
             emit({"type": "action", "step": step, "by": by, **action})
             if action["action"] == "done":
+                last = sb.send({"cmd": "state"})  # collect late events (downloads, beacons) before destroying
+                if last.get("ok"):
+                    ev.add_state(last, step)
+                    for n in last.get("network", []):
+                        if n.get("blocked"):
+                            emit({"type": "containment", "step": step, "url": n["url"], "reason": n.get("reason")})
+                    for d in last.get("downloads", []):
+                        emit({"type": "download", "step": step, **d})
                 break
             history.append(f"{action['action']} {action.get('id', action.get('submit_id', ''))}")
             cmd = {"cmd": action["action"], **{k: v for k, v in action.items() if k not in ("action", "reason")}}
