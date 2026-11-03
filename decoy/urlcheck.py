@@ -36,11 +36,12 @@ def normalize(raw: str) -> str:
         return url  # our own fake demo sites
     try:
         ip = ipaddress.ip_address(host.strip("[]"))
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
-            raise BadLink("Links to private or internal addresses are not allowed.")
     except ValueError:
-        if host == "localhost" or host.endswith((".local", ".internal", ".localhost")):
-            raise BadLink("Links to private or internal addresses are not allowed.")
+        ip = None  # a name, not an IP literal
+    internal = (ip is not None and (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved)) or \
+        host == "localhost" or host.endswith((".local", ".internal", ".localhost"))
+    if internal:
+        raise BadLink("Links to private or internal addresses are not allowed.")
     return url
 
 
