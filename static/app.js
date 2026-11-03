@@ -1,4 +1,4 @@
-﻿// Decoy front end: start a scan, stream the control plane's real events, type the agent's notes live,
+// Decoy front end: start a scan, stream the control plane's real events, type the agent's notes live,
 // show the verdict and record the human decision. Every event handler is guarded so one bad event cannot stall the page.
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
