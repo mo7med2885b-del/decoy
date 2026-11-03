@@ -103,7 +103,7 @@ main { max-width: 1240px; margin: 0 auto; padding: 0 16px 40px; }
 .blocked li b { color: var(--danger); margin-right: 4px; }
 .blocked li.fresh { animation: flash 1.2s; }
 @keyframes flash { from { background: var(--danger-bg); } }
-.timeline { padding-left: 18px; margin: 0 0 8px; font-size: 13px; max-height: 340px; overflow: auto; }
+.timeline { padding-left: 30px; margin: 0 0 8px; font-size: 13px; max-height: 340px; overflow: auto; }
 .timeline li { margin: 5px 0; }
 .timeline .by { color: var(--muted); font-size: 11px; }
 .foot { text-align: center; color: var(--muted); font-size: 13px; padding: 20px 16px 30px; }

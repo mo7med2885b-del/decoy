@@ -123,9 +123,16 @@ function handle(ev) {
     case 'containment': {
       if (!blockedCount) $('blocked').innerHTML = '';
       blockedCount++;
-      const li = document.createElement('li'); li.className = 'fresh';
-      li.innerHTML = `<b>BLOCKED</b>${esc(ev.url)}<br><span class="muted">${esc(ev.reason)}</span>`;
-      $('blocked').appendChild(li);
+      const same = [...$('blocked').children].find(x => x.dataset.url === ev.url);
+      if (same) {  // the same probe on every page: count it instead of repeating it
+        same.dataset.n = +same.dataset.n + 1;
+        same.querySelector('.n').textContent = ` ×${same.dataset.n}`;
+        same.classList.remove('fresh'); void same.offsetWidth; same.classList.add('fresh');
+      } else {
+        const li = document.createElement('li'); li.className = 'fresh'; li.dataset.url = ev.url; li.dataset.n = 1;
+        li.innerHTML = `<b>BLOCKED</b><span class="n"></span> ${esc(ev.url)}<br><span class="muted">${esc(ev.reason)}</span>`;
+        $('blocked').appendChild(li);
+      }
       line(`<b style="color:var(--danger)">Blocked</b> a request to ${esc(new URL(ev.url).hostname)}`, 'sandbox');
       break;
     }
