@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decoy</title>
+<link rel="stylesheet" href="/static/style.css">
+<script>try { const t = localStorage.getItem('decoy-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="mark" aria-hidden="true">◎</span><b>Decoy</b><span class="tag">open suspicious links safely</span></div>
+  <div class="badges" id="badges"></div>
+  <button class="ghost" id="theme" title="Light or dark">◐</button>
+</header>
+
+<main>
+  <section class="hero" id="hero">
+    <h1>Curious about a link? <span>Let Decoy open it for you.</span></h1>
+    <p class="lead">Decoy opens the link in a sealed, throwaway browser on Vultr. An agent clicks around like a curious person,
+      types <b>fake</b> passwords, and watches where they go. Then the sandbox is destroyed and you get a plain answer.</p>
+    <form id="form" class="ask">
+      <input id="url" type="text" placeholder="Paste a link from an email, WhatsApp or text message" autocomplete="off" spellcheck="false">
+      <button type="submit" id="go">Open it safely</button>
+    </form>
+    <div class="examples" id="examples"><span>Try a test link:</span></div>
+    <p class="err" id="err"></p>
+  </section>
+
+  <section class="run hidden" id="run">
+    <div class="verdict pending" id="verdict">
+      <div class="vlevel" id="vlevel">Opening the link in a sealed browser…</div>
+      <p class="vsum" id="vsum">Nothing runs on your computer. Everything happens inside a throwaway sandbox.</p>
+      <div class="vgrid hidden" id="vgrid">
+        <div><h3>Why</h3><ul id="evidence"></ul></div>
+        <div><h3>What the attacker would have received</h3><div id="loot"></div>
+          <p class="fine">Only the fake data below was ever typed. Nothing real left your hands.</p></div>
+      </div>
+      <div class="decide hidden" id="decide">
+        <h3>Your decision</h3>
+        <p class="fine">Decoy never blocks or reports anything by itself. You decide.</p>
+        <input id="note" type="text" placeholder="Note (optional), e.g. 'arrived by WhatsApp from unknown number'">
+        <div class="dbtns">
+          <button data-d="block" class="danger">Block this site for my team</button>
+          <button data-d="allow" class="ghost">Mark as safe</button>
+          <button data-d="dismiss" class="ghost">Dismiss</button>
+        </div>
+        <p class="fine" id="decided"></p>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="browser">
+        <div class="chrome">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <span class="addr" id="addr">about:blank</span>
+          <span class="sealed" id="sealed">SEALED</span>
+        </div>
+        <div class="screen"><img id="shot" alt="What the sealed browser sees"><div class="screen-msg" id="screenmsg">Starting a fresh sandbox…</div></div>
+        <div class="strip" id="strip"></div>
+      </div>
+
+      <aside class="side">
+        <div class="card">
+          <h3>Sandbox</h3>
+          <ol class="life" id="life"><li id="l-created">Created</li><li id="l-running">Running</li><li id="l-destroyed">Destroyed</li></ol>
+          <div class="limits" id="limits"></div>
+        </div>
+        <div class="card">
+          <h3>Fake data the agent may type</h3>
+          <dl class="canary" id="canary"></dl>
+        </div>
+        <div class="card">
+          <h3>Blocked by the sandbox</h3>
+          <ul class="blocked" id="blocked"><li class="muted">Nothing yet.</li></ul>
+        </div>
+        <div class="card">
+          <h3>What Decoy did</h3>
+          <ol class="timeline" id="timeline"></ol>
+          <button class="ghost small" id="cancel">Cancel scan</button>
+        </div>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">Decoy runs every link in a disposable sandbox on Vultr. A clean result means nothing harmful was seen during this visit; it is not a guarantee.</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>
