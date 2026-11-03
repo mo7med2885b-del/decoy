@@ -41,7 +41,8 @@ class Evidence:
             if n.get("blocked") and not any(b["url"] == n["url"] for b in self.blocked):
                 self.blocked.append({"url": n["url"], "reason": n.get("reason", ""), "step": step})
         for d in state.get("downloads", []):
-            self.downloads.append({**d, "step": step})
+            if not any(x.get("sha256") == d.get("sha256") and x.get("filename") == d.get("filename") for x in self.downloads):
+                self.downloads.append({**d, "step": step})
         hidden = page.get("hidden_text") or ""
         m = AI_ORDER.search(hidden)
         if m and not self.hidden_orders:

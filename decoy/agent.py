@@ -74,7 +74,7 @@ def rules_plan(page: dict, tried: set) -> dict:
             return {"action": "fill_and_submit", "fields": [{"id": i, "value": t} for i, t in fields], "submit_id": sub,
                     "reason": "The page asks for personal data; typing fake values to see where they go."}
     for el in buttons + page.get("links", []):
-        key = "click:" + (el.get("text") or "") + (el.get("href") or "")
+        key = "click:" + (el.get("text") or "").strip().lower()  # a button inside a link shows up twice
         if SUBMIT_WORDS.search(el.get("text", "")) and key not in tried:
             tried.add(key)
             return {"action": "click", "id": el["id"], "reason": f"Clicking '{el.get('text', '')[:40]}' like a curious person."}
