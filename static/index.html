@@ -4,88 +4,121 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Decoy</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%230d6efd' stroke-width='4'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%230d6efd'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%231c1d1f'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%23a8dcff' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23a8dcff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="/static/style.css">
-<script>try { const t = localStorage.getItem('decoy-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 </head>
-<body>
-<header class="top">
-  <div class="brand"><span class="mark" aria-hidden="true">◎</span><b>Decoy</b><span class="tag">open suspicious links safely</span></div>
-  <div class="badges" id="badges"></div>
-  <button class="ghost" id="theme" title="Light or dark">◐</button>
-</header>
+<body data-risk="idle">
+<div class="riskbar" id="riskbar" hidden><span class="dot"></span><span id="riskText"></span></div>
 
-<main>
-  <section class="hero" id="hero">
-    <h1>Curious about a link? <span>Let Decoy open it for you.</span></h1>
-    <p class="lead">Decoy opens the link in a sealed, throwaway browser on Vultr. An agent clicks around like a curious person,
-      types <b>fake</b> passwords, and watches where they go. Then the sandbox is destroyed and you get a plain answer.</p>
-    <form id="form" class="ask">
-      <input id="url" type="text" placeholder="Paste a link from an email, WhatsApp or text message" autocomplete="off" spellcheck="false">
-      <button type="submit" id="go">Open it safely</button>
-    </form>
-    <div class="examples" id="examples"><span>Try a test link:</span></div>
-    <p class="err" id="err"></p>
-  </section>
+<div class="device">
+  <header class="frame-top">
+    <div class="logo" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="9" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="16" cy="16" r="3.2" fill="currentColor"/></svg></div>
+    <div class="titletab"><h1>Decoy</h1><span>Suspicious-link sandbox</span></div>
+    <nav class="pills" id="pills">
+      <span class="pill" id="pSandbox">Sandbox: …</span>
+      <span class="pill" id="pAgent">Agent: …</span>
+      <span class="pill" id="pSpend">$0.00 today</span>
+      <span class="pill vultr">Runs on Vultr</span>
+    </nav>
+  </header>
 
-  <section class="run hidden" id="run">
-    <div class="verdict pending" id="verdict">
-      <div class="vlevel" id="vlevel">Opening the link in a sealed browser…</div>
-      <p class="vsum" id="vsum">Nothing runs on your computer. Everything happens inside a throwaway sandbox.</p>
-      <div class="vgrid hidden" id="vgrid">
-        <div><h3>Why</h3><ul id="evidence"></ul></div>
-        <div><h3>What the attacker would have received</h3><div id="loot"></div>
-          <p class="fine">Only the fake data below was ever typed. Nothing real left your hands.</p></div>
+  <main class="canvas">
+    <ol class="steps" id="steps" aria-label="Progress">
+      <li data-s="0" class="on"><b>1</b><span>Link</span></li>
+      <li data-s="1"><b>2</b><span>Sealed browser</span></li>
+      <li data-s="2"><b>3</b><span>Verdict</span></li>
+      <li data-s="3"><b>4</b><span>Your decision</span></li>
+      <i class="steps-fill" id="stepsFill"></i>
+    </ol>
+
+    <section class="intake card" id="intake">
+      <div class="intake-copy">
+        <h2>Curious about a link? <span>Let Decoy open it for you.</span></h2>
+        <p class="sub">The link is opened in a throwaway browser on a Vultr server, never on your device. An agent clicks around,
+          types <b>fake</b> logins and card numbers, and records where they go. Then the sandbox is destroyed.</p>
       </div>
-      <div class="decide hidden" id="decide">
-        <h3>Your decision</h3>
-        <p class="fine">Decoy never blocks or reports anything by itself. You decide.</p>
-        <input id="note" type="text" placeholder="Note (optional), e.g. 'arrived by WhatsApp from unknown number'">
-        <div class="dbtns">
-          <button data-d="block" class="danger">Block this site for my team</button>
-          <button data-d="allow" class="ghost">Mark as safe</button>
-          <button data-d="dismiss" class="ghost">Dismiss</button>
+      <form id="form" class="ask">
+        <input id="url" type="text" placeholder="Paste a link from an email, WhatsApp or text message" autocomplete="off" spellcheck="false">
+        <button class="btn primary" type="submit" id="go">Open it safely →</button>
+      </form>
+      <div class="examples"><span class="small">Test links (fake sites we host):</span><div class="chipset" id="examples"></div></div>
+      <p class="err" id="err"></p>
+    </section>
+
+    <section class="run hidden" id="run">
+      <section class="verdict card" id="verdict">
+        <div class="vhead">
+          <div class="ring"><svg viewBox="0 0 72 72"><circle cx="36" cy="36" r="30" class="ring-bg"/><circle cx="36" cy="36" r="30" class="ring-fg" id="ringFg" transform="rotate(-90 36 36)"/></svg><b id="ringNum">–</b></div>
+          <div class="vtext">
+            <span class="lbl">Verdict</span>
+            <div class="vlevel" id="vlevel">Working…</div>
+            <p class="vsum" id="vsum">The sealed browser is opening the link.</p>
+          </div>
+          <div class="vmeta" id="vmeta"></div>
         </div>
-        <p class="fine" id="decided"></p>
+        <div class="vgrid hidden" id="vgrid">
+          <div class="sheet"><h3>Why</h3><ol id="evidence"></ol></div>
+          <div class="sheet"><h3>What the attacker would have received</h3><div id="loot"></div>
+            <p class="small">Only the fake data shown on the right was ever typed. Nothing real left your hands.</p></div>
+        </div>
+        <div class="decide hidden" id="decide">
+          <div><h3>Your decision</h3><p class="small">Decoy never blocks or reports anything by itself. You decide, and it is recorded.</p></div>
+          <input id="note" type="text" placeholder="Note (optional): where did the link come from?">
+          <div class="row">
+            <button class="btn danger" data-d="block">Block for my team</button>
+            <button class="btn" data-d="allow">Mark as safe</button>
+            <button class="btn" data-d="dismiss">Dismiss</button>
+          </div>
+          <p class="small" id="decided"></p>
+        </div>
+      </section>
+
+      <div class="grid">
+        <section class="browser card">
+          <div class="chrome">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <span class="addr" id="addr">about:blank</span>
+            <span class="seal" id="seal">STARTING</span>
+          </div>
+          <div class="screen"><img id="shot" alt="What the sealed browser sees"><div class="screen-msg" id="screenmsg">Starting a fresh sandbox…</div></div>
+          <div class="strip" id="strip"></div>
+        </section>
+
+        <section class="console" id="console">
+          <div class="chead"><span class="orb" id="orb"></span><div><b>Agent console</b><small id="cstate">Idle</small></div></div>
+          <ol class="chain" id="chain">
+            <li data-n="check"><i>⌁</i>Address check<small>code</small></li>
+            <li data-n="sandbox"><i>▣</i>Fresh sandbox<small>Docker on Vultr</small></li>
+            <li data-n="explore"><i>◉</i>Explorer agent<small id="explorerBy">Vultr Inference</small></li>
+            <li data-n="judge"><i>⚖</i>Evidence judge<small>code</small></li>
+            <li data-n="destroy"><i>✕</i>Sandbox destroyed<small>lifecycle</small></li>
+            <li data-n="you"><i>✓</i>Your decision<small>human</small></li>
+          </ol>
+          <div class="stats">
+            <div><b id="sSteps">0</b><small>Pages seen</small></div>
+            <div><b id="sBlocked">0</b><small>Blocked</small></div>
+            <div><b id="sLeaks">0</b><small>Fake-data leaks</small></div>
+            <div><b id="sCalls">0</b><small>Model calls</small></div>
+          </div>
+          <div class="trace-head">LIVE TRACE</div>
+          <ol class="trace" id="trace"></ol>
+          <button class="ghost" id="cancel" type="button">Cancel scan</button>
+        </section>
       </div>
-    </div>
 
-    <div class="grid">
-      <div class="browser">
-        <div class="chrome">
-          <span class="dots"><i></i><i></i><i></i></span>
-          <span class="addr" id="addr">about:blank</span>
-          <span class="sealed" id="sealed">SEALED</span>
-        </div>
-        <div class="screen"><img id="shot" alt="What the sealed browser sees"><div class="screen-msg" id="screenmsg">Starting a fresh sandbox…</div></div>
-        <div class="strip" id="strip"></div>
+      <div class="grid3">
+        <section class="card"><h3>Sandbox</h3>
+          <ol class="life"><li id="l-created">Created</li><li id="l-running">Running</li><li id="l-destroyed">Destroyed</li></ol>
+          <div class="limits" id="limits"></div></section>
+        <section class="card"><h3>Fake data the agent may type</h3><dl class="canary" id="canary"></dl></section>
+        <section class="card"><h3>Blocked by the sandbox</h3><ul class="blocked" id="blocked"><li class="small">Nothing yet.</li></ul></section>
       </div>
-
-      <aside class="side">
-        <div class="card">
-          <h3>Sandbox</h3>
-          <ol class="life" id="life"><li id="l-created">Created</li><li id="l-running">Running</li><li id="l-destroyed">Destroyed</li></ol>
-          <div class="limits" id="limits"></div>
-        </div>
-        <div class="card">
-          <h3>Fake data the agent may type</h3>
-          <dl class="canary" id="canary"></dl>
-        </div>
-        <div class="card">
-          <h3>Blocked by the sandbox</h3>
-          <ul class="blocked" id="blocked"><li class="muted">Nothing yet.</li></ul>
-        </div>
-        <div class="card">
-          <h3>What Decoy did</h3>
-          <ol class="timeline" id="timeline"></ol>
-          <button class="ghost small" id="cancel">Cancel scan</button>
-        </div>
-      </aside>
-    </div>
-  </section>
-</main>
-
-<footer class="foot">Decoy runs every link in a disposable sandbox on Vultr. A clean result means nothing harmful was seen during this visit; it is not a guarantee.</footer>
+    </section>
+  </main>
+  <footer class="foot">A clean result means nothing harmful was seen during this visit. It is not a guarantee.</footer>
+</div>
 <script src="/static/app.js"></script>
 </body>
 </html>
