@@ -105,6 +105,5 @@ def template_summary(v: dict) -> str:
     if v["level"] == "NO THREAT FOUND":
         return ("We opened the link in a sealed browser and saw nothing harmful during this visit: no password theft, "
                 "no downloads, no attempts to reach private addresses. That is not a guarantee; stay careful.")
-    top = [e["text"] for e in v["evidence"][:3]]
     lead = "Do not open this link." if v["level"] == "DANGEROUS" else "Be careful with this link."
-    return lead + " " + " ".join(top)
+    return lead + " " + v["evidence"][0]["text"] + " The reasons are listed below."
