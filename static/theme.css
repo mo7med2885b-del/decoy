@@ -274,3 +274,25 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 :root[data-theme="light"] .seal.dev, :root[data-theme="light"] .limits span.warn { background: var(--orange-soft); color: #b24a00; }
 :root[data-theme="light"] .life li.on { background: var(--blue); color: #fff; } :root[data-theme="light"] .life li.gone { background: var(--blue-soft); color: #174ec4; }
 :root[data-theme="light"] .rescan { background: var(--blue-soft); color: var(--blue); }
+
+/* ---- investigate mode ---- */
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 760px; }
+.modes button { text-align: left; border: 0; cursor: pointer; padding: 10px 14px; border-radius: 14px; background: rgba(14, 22, 44, .6); color: var(--ink); box-shadow: inset 0 0 0 1.5px #22304f; font: inherit; }
+.modes button b { display: block; font-size: 14px; } .modes button small { color: var(--muted); font-size: 11.5px; font-weight: 600; }
+.modes button.on { box-shadow: inset 0 0 0 2px var(--blue), 0 0 22px rgba(45, 123, 255, .3); background: rgba(45, 123, 255, .14); }
+:root[data-theme="light"] .modes button { background: #fff; box-shadow: inset 0 0 0 1.5px #c5d2ee; } :root[data-theme="light"] .modes button.on { background: var(--blue-soft); box-shadow: inset 0 0 0 2px var(--blue); }
+.invbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+.desks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.desk { background: rgba(8, 13, 28, .55); border-radius: 16px; padding: 12px; box-shadow: inset 0 0 0 1px rgba(150, 180, 255, .1); }
+.desk.working { box-shadow: inset 0 0 0 1.5px var(--blue), 0 0 22px rgba(45, 123, 255, .25); }
+.dh { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } .dh i { font-style: normal; width: 26px; height: 26px; border-radius: 9px; display: grid; place-items: center; background: var(--blue-soft); }
+.dh b { font-size: 13.5px; } .dh .st { margin-left: auto; font-size: 10.5px; color: var(--muted); font-weight: 700; }
+.df { margin: 0; padding-left: 18px; font-size: 13px; } .df li { margin: 4px 0; }
+.report { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.rh { display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; } .rh h4 { margin: 4px 0 0; font-size: 20px; letter-spacing: -.015em; max-width: 640px; }
+.rdl { display: flex; gap: 8px; } .rdl .btn { text-decoration: none; color: inherit; font-size: 13px; padding: 9px 14px; }
+.rcols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; } .report h5 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.report ol, .report ul { margin: 0; padding-left: 20px; } .report li { margin: 5px 0; }
+.tw { overflow-x: auto; } .ioc { width: 100%; border-collapse: collapse; font-size: 12.5px; } .ioc th { text-align: left; color: var(--muted); font-weight: 700; padding: 6px 8px; }
+.ioc td { padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; } .ioc code { font: 12px "JetBrains Mono", Consolas, monospace; overflow-wrap: anywhere; }
+@media (max-width: 900px) { .desks, .rcols { grid-template-columns: 1fr; } .modes { grid-template-columns: 1fr; } }

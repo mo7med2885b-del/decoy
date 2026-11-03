@@ -45,6 +45,7 @@
             <p class="sub">The link is opened in a throwaway browser on a Vultr server, never on your device. An agent clicks around,
               types <b>fake</b> logins and card numbers, and records where they go. Then the sandbox is destroyed.</p>
           </div>
+          <div class="modes" id="modes" role="tablist" aria-label="Mode"><button type="button" data-mode="simple" class="on"><b>Simple check</b><small>a clear yes or no for everyone</small></button><button type="button" data-mode="investigate"><b>Investigate</b><small>a team of analysts writes an incident report</small></button></div>
           <form id="form" class="ask">
             <input id="url" type="text" placeholder="Paste a link from an email, WhatsApp or text message" autocomplete="off" spellcheck="false">
             <button class="btn primary" type="submit" id="go">Open it safely →</button>
@@ -71,6 +72,7 @@
               <div class="sheet"><h3>What the attacker would have received</h3><div id="loot"></div>
                 <p class="small">Only the fake data listed below was ever typed. Nothing real left your hands.</p></div>
             </div>
+            <div class="invbar hidden" id="invbar"><button class="btn" id="invbtn" type="button">Investigate like a security analyst</button><span class="small">A team of specialist agents reads the evidence and writes a takedown-ready report. Passive and defensive only.</span></div>
             <div class="askbox hidden" id="askbox">
               <h3>Ask Decoy about this scan</h3>
               <div class="chipset" id="askchips"></div>
@@ -87,6 +89,12 @@
               </div>
               <p class="small" id="decided"></p>
             </div>
+          </section>
+
+          <section class="card hidden" id="invcard">
+            <h3>Analyst investigation <small class="small">specialist agents read the evidence · passive and defensive only</small></h3>
+            <div class="desks" id="desks"></div>
+            <div class="report hidden" id="report"></div>
           </section>
 
           <section class="card hidden" id="swarmcard">

@@ -3,7 +3,7 @@
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const LABELS = {EMAIL: 'Email', PASSWORD: 'Password', CARD: 'Card number', CVV: 'Card code', NAME: 'Name', PHONE: 'Phone'};
-let scanId = null, source = null;
+let scanId = null, source = null, mode = 'simple', evCount = 0;
 const count = {steps: 0, blocked: 0, leaks: 0};
 
 /* ---------- live trace: lines type out one after another ---------- */
@@ -111,6 +111,28 @@ async function refreshHistory() {
     document.querySelectorAll('#hist li').forEach(li => li.querySelector('.rescan').onclick = () => { $('url').value = li.dataset.url; start(); });
   } catch (e) {}
 }
+function renderReport(r) {
+  const box = $('report'); box.classList.remove('hidden'); $('invbar').classList.add('hidden');
+  const iocRows = r.iocs.map(i => `<tr><td>${esc(i.type)}</td><td><code>${esc(i.value)}</code></td><td>${esc(i.role)}</td></tr>`).join('');
+  box.innerHTML = `<div class="rh"><div><span class="lbl">Incident report ${esc(r.id)} · ${esc(r.generated_at)}</span><h4>${esc(r.headline)}</h4></div>`
+    + `<div class="rdl"><a class="btn" href="/api/scan/${scanId}/report.md">Download .md</a><a class="btn" href="/api/scan/${scanId}/report.json">Download .json</a></div></div>`
+    + `<div class="rcols"><div><h5>How the scam works</h5><ol>${r.how_it_works.map(s => `<li>${esc(s)}</li>`).join('')}</ol>`
+    + `<h5>Suggested ATT&amp;CK mapping</h5><ul>${r.techniques.map(t => `<li><b>${esc(t.id || 'no id')}</b> ${esc(t.name)}<br><small class="small">${esc(t.why)}</small></li>`).join('')}</ul></div>`
+    + `<div><h5>Recommended actions</h5><ul>${r.actions.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div></div>`
+    + `<h5>Indicators of compromise <button class="rescan" id="copyioc" type="button" title="Copy all">⧉</button></h5><div class="tw"><table class="ioc"><thead><tr><th>Type</th><th>Value</th><th>Role</th></tr></thead><tbody>${iocRows}</tbody></table></div>`
+    + `<p class="small">${esc(r.note)}</p>`;
+  $('copyioc').onclick = () => { try { navigator.clipboard.writeText(r.iocs.map(i => i.value).join('\n')); $('copyioc').textContent = '✓'; } catch (e) {} };
+}
+async function investigate() {
+  if (!scanId) return; $('invbtn').disabled = true;
+  try {
+    const r = await fetch(`/api/scan/${scanId}/investigate`, {method: 'POST'}); const j = await r.json();
+    if (!r.ok) { $('invbar').insertAdjacentHTML('beforeend', `<span class="err">${esc(j.detail || 'Could not start.')}</span>`); $('invbtn').disabled = false; return; }
+    if (source) source.close(); source = new EventSource(`/api/scan/${scanId}/events?since=${j.since}`);
+    source.onmessage = m => { try { handle(JSON.parse(m.data)); } catch (e) { console.error(e); } };
+    source.onerror = () => source.close();
+  } catch (e) { $('invbtn').disabled = false; }
+}
 function initQr() {
   $('qrfile').onchange = async () => {
     const f = $('qrfile').files[0]; if (!f) return; $('qrnote').textContent = 'Reading the QR code…';
@@ -147,6 +169,8 @@ async function init() {
     }
   } catch (e) {}
   $('form').onsubmit = e => { e.preventDefault(); start(); };
+  document.querySelectorAll('#modes button').forEach(b => b.onclick = () => { mode = b.dataset.mode; document.querySelectorAll('#modes button').forEach(x => x.classList.toggle('on', x === b)); });
+  $('invbtn').onclick = investigate;
   $('theme').onclick = () => {
     const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
     document.documentElement.dataset.theme = next;
@@ -172,6 +196,7 @@ function reset() {
   $('screenmsg').textContent = 'Starting a fresh sandbox…';
   ['l-created', 'l-running', 'l-destroyed'].forEach(id => $(id).className = '');
   $('seal').className = 'seal'; $('seal').textContent = 'STARTING';
+  evCount = 0; $('invcard').classList.add('hidden'); $('desks').innerHTML = ''; $('report').classList.add('hidden'); $('invbar').classList.add('hidden');
   WF.reset(); buildSwarm([]); $('memory').classList.add('hidden'); $('askbox').classList.add('hidden'); $('askout').classList.add('hidden'); $('askout').textContent = '';
   Object.keys(count).forEach(k => count[k] = 0);
   stat('sSteps', 0); stat('sBlocked', 0); stat('sLeaks', 0); stat('sCalls', 0);
@@ -185,7 +210,7 @@ async function start() {
   if (!url) { $('err').textContent = 'Paste a link first.'; return; }
   $('go').disabled = true;
   try {
-    const r = await fetch('/api/scan', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url})});
+    const r = await fetch('/api/scan', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url, mode})});
     const j = await r.json();
     if (!r.ok) { $('err').textContent = j.detail || 'Could not start.'; $('go').disabled = false; return; }
     scanId = j.id; reset();
@@ -198,8 +223,21 @@ async function start() {
 }
 
 function handle(ev) {
+  if (ev.type !== 'end') evCount++;
   try { WF.event(ev); } catch (e) { console.error(e); }
   switch (ev.type) {
+    case 'investigation':
+      $('invcard').classList.remove('hidden'); $('invbar').classList.add('hidden'); $('desks').innerHTML = '';
+      ev.analysts.forEach(a => { const d = document.createElement('div'); d.className = 'desk working'; d.id = 'desk-' + a.id;
+        d.innerHTML = `<div class="dh"><i>${esc(a.icon)}</i><b>${esc(a.name)}</b><span class="st">working…</span></div><ul class="df"></ul>`; $('desks').appendChild(d); });
+      trace('The analyst team is reading the evidence.', 'investigation · control plane', 'ai'); break;
+    case 'analyst': {
+      const d = $('desk-' + ev.id); if (!d) break;
+      d.classList.remove('working'); d.querySelector('.st').textContent = 'done · ' + ev.by;
+      ev.findings.forEach(f => { const li = document.createElement('li'); d.querySelector('.df').appendChild(li); typeInto(li, f); });
+      trace(`${ev.name}: ${ev.findings[0] || 'no findings'}`, 'analyst · ' + ev.by, 'ai'); break;
+    }
+    case 'report': renderReport(ev.report); trace('Incident report ready: ' + ev.report.headline, 'lead analyst', 'good'); break;
     case 'queued':
       trace(ev.position > 0 ? `Waiting in the queue, position ${ev.position}.` : 'Starting right away.', 'queue'); break;
     case 'running': break;
@@ -319,7 +357,7 @@ function showVerdict(v) {
     || '<p class="small">Nothing was sent to another server.</p>';
   $('vgrid').classList.remove('hidden'); $('decide').classList.remove('hidden');
   showMemory(v.memory); (v.swarm || []).forEach(s => swUpdate(s.id, {level: s.level, title: s.title, asked: s.asked}));
-  $('askbox').classList.remove('hidden'); refreshHistory();
+  $('askbox').classList.remove('hidden'); refreshHistory(); if (mode !== 'investigate') $('invbar').classList.remove('hidden');
   trace(`Verdict ${v.level}, score ${v.score}/100, from ${v.evidence.length} pieces of evidence.`, 'evidence judge · code', risk === 'clean' ? 'good' : 'bad');
   stepTo(3);
 }

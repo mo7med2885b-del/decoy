@@ -11,12 +11,13 @@ const WF = (() => {
     net: [73, 410, '⛨', 'Egress filter', 'code · blocks private IPs', 'code'],
     memory: [73, 505, '◈', 'Threat memory', 'SQLite · seen before?', 'code'],
     destroy: [27, 505, '✕', 'Sandbox destroyed', 'lifecycle', 'code'],
-    judge: [50, 596, '⚖', 'Evidence judge', 'code · score by rules', 'code'],
+    analysts: [73, 596, '🔎', 'Analyst team', 'Vultr AI · investigate mode', 'model'],
+    judge: [27, 596, '⚖', 'Evidence judge', 'code · score by rules', 'code'],
     summary: [27, 694, '✎', 'Summary', 'Vultr AI · small model', 'model'],
     human: [73, 694, '✓', 'Your decision', 'block · safe · dismiss', 'human'],
   };
   const EDGES = [['control', 'link', 'model'], ['link', 'check'], ['check', 'sandbox'], ['sandbox', 'explore', 'model'], ['sandbox', 'net'],
-    ['explore', 'destroy'], ['destroy', 'judge'], ['net', 'memory'], ['memory', 'judge'], ['judge', 'summary', 'model'], ['summary', 'human']];
+    ['explore', 'destroy'], ['destroy', 'judge'], ['net', 'memory'], ['memory', 'judge'], ['judge', 'analysts', 'model'], ['analysts', 'human', 'model'], ['judge', 'summary', 'model'], ['summary', 'human']];
   const $ = id => document.getElementById(id);
   const el = {};
   let loop = null, started = false;
@@ -116,6 +117,9 @@ const WF = (() => {
         state('judge', ev.level === 'DANGEROUS' ? 'bad' : 'active', `${ev.level.toLowerCase()} · ${ev.score}/100`);
         setTimeout(() => { flow('judge', 'summary'); settle('summary'); state('summary', 'active', ev.summary); }, 900); break;
       case 'end': chatter(false); flow('summary', 'human'); settle('human'); state('human', 'active', 'waiting for you…'); head('Waiting for your decision', false); break;
+      case 'investigation': flow('judge', 'analysts'); settle('analysts'); state('analysts', 'active', ev.analysts.map(a => a.name).join(' · ')); head('Analysts investigating', true); break;
+      case 'analyst': state('analysts', 'active', ev.name + ': ' + (ev.findings[0] || '')); break;
+      case 'report': flow('analysts', 'human'); state('analysts', 'done', 'report ready'); head('Report ready', false); break;
       case 'queued': head('Waiting in the queue: #' + ev.position, true); break;
       case 'running': head('Starting…', true); break;
       case 'decision': state('human', 'done', 'you chose: ' + ev.choice); head('Done: you decided', false); break;
