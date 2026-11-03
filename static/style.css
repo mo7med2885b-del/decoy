@@ -32,7 +32,11 @@ code, .mono { font-family: "JetBrains Mono", Consolas, monospace; font-size: 12.
 .pill { background: #3b3e44; color: #e6e6e2; padding: 8px 15px; border-radius: 99px; font-weight: 700; font-size: 12.5px; white-space: nowrap; }
 .pill.ok { background: #fff; color: var(--ink); }
 .pill.warn { background: var(--amber-soft); color: #6b4700; }
-.pill.vultr { background: var(--accent); color: var(--ink); transition: background .8s; }
+.pill.vultr { background: #fff; color: var(--ink); display: inline-flex; align-items: center; gap: 7px; }
+.vlogo { display: inline-block; width: 15px; height: 15px; background: #007bfc; flex: none;
+  -webkit-mask: url(/static/assets/vultr.svg) center / contain no-repeat; mask: url(/static/assets/vultr.svg) center / contain no-repeat; }
+.chain li i .vlogo { width: 13px; height: 13px; background: #4ea4ff; }
+.chain li.active i .vlogo { background: var(--con); }
 
 .canvas { background: var(--canvas); border-radius: 0 36px 36px 36px; margin: 0 10px; padding: 18px 26px 26px; display: flex; flex-direction: column; gap: 16px; }
 .card { background: var(--card); border-radius: var(--radius); padding: 18px 20px; }
