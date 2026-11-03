@@ -29,6 +29,7 @@ JOBS: "queue.Queue[tuple]" = queue.Queue(maxsize=env_int("MAX_QUEUE", 8))
 WORKERS = env_int("SCAN_WORKERS", 1)
 HARD_SECONDS = env_int("MAX_SECONDS_PER_SCAN", 120) * 2 + 30   # watchdog: the whole swarm must be gone by then
 HITS: dict[str, collections.deque] = collections.defaultdict(collections.deque)
+ACTIVE = [0]   # scans running right now
 
 
 class NoStore(StaticFiles):
@@ -119,7 +120,11 @@ def _worker():
                     SCANS[scan_id]["events"].append({"type": "note", "text": "Cancelled before it started.", "t": 0})
                     SCANS[scan_id]["done"] = True
             else:
-                _run(scan_id, url, budget, mode)
+                ACTIVE[0] += 1
+                try:
+                    _run(scan_id, url, budget, mode)
+                finally:
+                    ACTIVE[0] -= 1
         finally:
             JOBS.task_done()
 
@@ -146,7 +151,7 @@ async def start_scan(request: Request):
     except queue.Full:
         del SCANS[scan_id]
         raise HTTPException(429, "Decoy is busy. Try again in a minute.")
-    pos = JOBS.qsize()
+    pos = max(0, JOBS.qsize() + ACTIVE[0] - WORKERS)  # how many scans are ahead of this one
     SCANS[scan_id]["events"].append({"type": "queued", "position": pos, "t": 0})
     return {"id": scan_id, "url": url, "queued": pos}
 
