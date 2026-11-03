@@ -167,15 +167,18 @@ class Runner:
     # ---- observation -------------------------------------------------------
     def state(self, note=None):
         time.sleep(0.4)
-        try:
-            self.page.wait_for_load_state("load", timeout=5000)
-        except Exception:
-            pass
         info = {}
-        try:
-            info = self.page.evaluate(SCAN_JS)
-        except Exception as e:
-            info = {"error": str(e)[:120]}
+        for _ in range(4):  # the page may still be navigating (scripts redirect after a submit)
+            try:
+                self.page.wait_for_load_state("load", timeout=5000)
+            except Exception:
+                pass
+            try:
+                info = self.page.evaluate(SCAN_JS)
+                break
+            except Exception as e:
+                info = {"error": str(e)[:120]}
+                time.sleep(0.8)
         try:
             shot = base64.b64encode(self.page.screenshot(type="jpeg", quality=62)).decode()
         except Exception:
