@@ -17,7 +17,7 @@ from .sandbox import Sandbox, SandboxError
 from .urlcheck import domain_signals
 from concurrent.futures import ThreadPoolExecutor
 
-from . import store
+from . import investigate, store
 from .verdict import Evidence, cloaking, template_summary
 
 MAX_ACTIONS = 6
@@ -236,7 +236,7 @@ def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, 
     return {"error": error, "info": sb.info, "first_shot": first_shot}
 
 
-def run_scan(scan_id: str, url: str, emit, budget: Budget) -> dict:
+def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = None) -> dict:
     started = time.time()
     out_dir = RUNS / scan_id
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -313,6 +313,8 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget) -> dict:
     v["seconds"] = round(time.time() - started, 1)
     v["sandbox"] = results[lead["id"]]["info"]
     v["error"] = error
+    if sink is not None:
+        sink["case"] = investigate.build_case(url, ev, v)
     try:
         store.save(scan_id, url, v)
     except Exception as e:

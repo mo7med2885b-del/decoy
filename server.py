@@ -12,11 +12,11 @@ import time
 import uuid
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from decoy import ask as ask_mod
-from decoy import guard, llm, qr, store
+from decoy import guard, investigate, llm, qr, store
 from decoy.agent import run_scan
 from decoy.config import DEMO_PORT, ROOT, RUNS, env, env_int
 from decoy.sandbox import docker_ready, kill_scan
@@ -86,7 +86,7 @@ def examples():
             {"label": "Harmless recipe", "url": f"http://daily-recipes.test:{p}/"}]
 
 
-def _run(scan_id: str, url: str, budget: guard.Budget):
+def _run(scan_id: str, url: str, budget: guard.Budget, mode: str = "simple"):
     def emit(ev):
         ev["t"] = round(time.time() - SCANS[scan_id]["started"], 2)
         if ev.get("type") == "verdict":
@@ -98,7 +98,9 @@ def _run(scan_id: str, url: str, budget: guard.Budget):
     watchdog.start()
     try:
         emit({"type": "running"})
-        run_scan(scan_id, url, emit, budget)
+        run_scan(scan_id, url, emit, budget, sink=SCANS[scan_id])
+        if mode == "investigate" and SCANS[scan_id].get("case"):
+            SCANS[scan_id]["report"] = investigate.run_investigation(SCANS[scan_id]["case"], emit, llm.available())
     except Exception as e:
         emit({"type": "note", "text": f"Scan failed: {e}"})
     finally:
@@ -110,14 +112,14 @@ def _run(scan_id: str, url: str, budget: guard.Budget):
 
 def _worker():
     while True:
-        scan_id, url, budget = JOBS.get()
+        scan_id, url, budget, mode = JOBS.get()
         try:
             if budget.cancelled.is_set():  # cancelled while waiting in the queue
                 with LOCK:
                     SCANS[scan_id]["events"].append({"type": "note", "text": "Cancelled before it started.", "t": 0})
                     SCANS[scan_id]["done"] = True
             else:
-                _run(scan_id, url, budget)
+                _run(scan_id, url, budget, mode)
         finally:
             JOBS.task_done()
 
@@ -140,7 +142,7 @@ async def start_scan(request: Request):
     budget = guard.Budget()
     SCANS[scan_id] = {"url": url, "events": [], "done": False, "started": time.time(), "budget": budget, "verdict": None}
     try:
-        JOBS.put_nowait((scan_id, url, budget))
+        JOBS.put_nowait((scan_id, url, budget, "investigate" if body.get("mode") == "investigate" else "simple"))
     except queue.Full:
         del SCANS[scan_id]
         raise HTTPException(429, "Decoy is busy. Try again in a minute.")
@@ -159,12 +161,12 @@ def cancel(scan_id: str):
 
 
 @app.get("/api/scan/{scan_id}/events")
-async def events(scan_id: str):
+async def events(scan_id: str, since: int = 0):
     if scan_id not in SCANS:
         raise HTTPException(404, "unknown scan")
 
     async def stream():
-        sent = 0
+        sent = max(0, since)
         while True:
             s = SCANS[scan_id]
             with LOCK:
@@ -213,6 +215,50 @@ async def ask(scan_id: str, request: Request):
         v = {"level": row["level"], "score": row["score"], "summary": row["summary"], "evidence": json.loads(row["evidence"] or "[]"),
              "attacker_got": [{"host": h, "data": []} for h in json.loads(row["exfil"] or "[]")], "swarm": [], "memory": {}}
     return ask_mod.answer(str(body.get("question", "")), v, guard.Budget())
+
+
+@app.post("/api/scan/{scan_id}/investigate")
+async def investigate_scan(scan_id: str, request: Request):
+    """Run the analyst team on a finished scan (Investigate mode after the fact). Events are appended to the scan's stream."""
+    rate_limit(request, "investigate", env_int("INVESTIGATIONS_PER_HOUR", 10))
+    s = SCANS.get(scan_id)
+    if not s or not s["done"] or not s.get("case"):
+        raise HTTPException(400, "The scan must be finished (and still in memory) to investigate it.")
+    if s.get("investigating"):
+        raise HTTPException(409, "The analysts are already working on it.")
+    start = len(s["events"])
+    s["investigating"], s["done"] = True, False
+
+    def work():
+        def emit(ev):
+            with LOCK:
+                s["events"].append(ev)
+        try:
+            s["report"] = investigate.run_investigation(s["case"], emit, llm.available())
+        except Exception as e:
+            emit({"type": "note", "text": f"Investigation failed: {e}"})
+        finally:
+            with LOCK:
+                s["done"], s["investigating"] = True, False
+
+    threading.Thread(target=work, daemon=True).start()
+    return {"since": start}
+
+
+@app.get("/api/scan/{scan_id}/report.json")
+def report_json(scan_id: str):
+    r = (SCANS.get(scan_id) or {}).get("report")
+    if not r:
+        raise HTTPException(404, "No report yet. Run the investigation first.")
+    return JSONResponse(r, headers={"Content-Disposition": f'attachment; filename="decoy-report-{r["id"]}.json"'})
+
+
+@app.get("/api/scan/{scan_id}/report.md")
+def report_md(scan_id: str):
+    r = (SCANS.get(scan_id) or {}).get("report")
+    if not r:
+        raise HTTPException(404, "No report yet. Run the investigation first.")
+    return PlainTextResponse(investigate.to_markdown(r), headers={"Content-Disposition": f'attachment; filename="decoy-report-{r["id"]}.md"'})
 
 
 @app.post("/api/qr")

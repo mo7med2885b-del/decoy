@@ -61,6 +61,8 @@ SCAN_JS = r"""
   out.hidden_text = hidden.join(' ').slice(0, 1500);
   out.visible_text = ((document.body && document.body.innerText) || '').slice(0, 2500);
   out.has_password = !!document.querySelector('input[type=password]');
+  out.scripts = [...document.scripts].filter(s => !s.src && s.textContent.trim()).slice(0, 6).map(s => s.textContent.trim().slice(0, 2500));
+  out.script_srcs = [...document.scripts].filter(s => s.src).slice(0, 10).map(s => s.src.slice(0, 200));
   return out;
 }
 """
