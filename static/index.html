@@ -6,9 +6,10 @@
 <title>Decoy</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%231c1d1f'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%23a8dcff' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23a8dcff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="/static/style.css">
 <link rel="stylesheet" href="/static/workflow.css">
+<link rel="stylesheet" href="/static/theme.css">
 </head>
 <body data-risk="idle">
 <div class="riskbar" id="riskbar" hidden><span class="dot"></span><span id="riskText"></span></div>
@@ -38,7 +39,7 @@
       <div class="left">
         <section class="intake card" id="intake">
           <div class="intake-copy">
-            <h2>Curious about a link? <span>Let Decoy open it for you.</span></h2>
+            <h2>Curious about a link? <span>Let Decoy open it <em>for you.</em></span></h2>
             <p class="sub">The link is opened in a throwaway browser on a Vultr server, never on your device. An agent clicks around,
               types <b>fake</b> logins and card numbers, and records where they go. Then the sandbox is destroyed.</p>
           </div>
@@ -100,6 +101,7 @@
 
       <!-- Agent workflow: always visible on the right, driven only by real scan events -->
       <aside class="wfpanel" id="wf">
+        <div class="wf-brand"><i class="vlogo" aria-hidden="true"></i><span>Vultr</span><small>Cloud Compute · Serverless Inference · Docker sandbox</small></div>
         <div class="wf-head">
           <span class="wf-orb" id="wfOrb"></span>
           <div><b>Agent workflow</b><small id="wfState">Waiting for a link</small></div>
