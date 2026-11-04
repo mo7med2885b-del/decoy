@@ -21,6 +21,7 @@ from concurrent.futures import ThreadPoolExecutor
 from . import geo as geo_mod
 from . import reputation
 from . import investigate, store
+from . import debate as debate_mod
 from . import swarm as swarm_mod
 from .verdict import Evidence, cloaking, is_telemetry, template_summary
 
@@ -355,6 +356,13 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
     agents.shutdown(wait=False)
 
     v = ev.verdict()
+    ai_budget.max_calls = 9
+    try:  # the swarm debates: share, challenge, reply, vote, consensus
+        consensus = debate_mod.run_debate(agent_results, ev, v, ctx_b, emit)
+    except Exception as e:
+        consensus = {"text": f"The debate could not finish ({type(e).__name__}).", "agree": 0, "total": 0, "dissent": [], "votes": {}, "challenges": 0}
+    v = ev.verdict()
+    v["consensus"] = consensus
     mem = out.get("memory") or {"seen_before": [], "campaign": []}
     v["memory"] = mem
     v["exfil_geo"] = [{k: tracker.locs[g["host"]].get(k) for k in ("host", "ip", "city", "code", "org", "simulated")} for g in v["attacker_got"] if g["host"] in tracker.locs]

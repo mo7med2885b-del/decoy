@@ -271,3 +271,21 @@ def test_error_monitoring_is_a_privacy_note_not_theft_and_phishing_channels_are_
     bad.add_state({"url": "https://x-offer.example/", "title": "Claim", "page": {"visible_text": "Claim your prize" * 10}, "network": [
         {"url": "https://api.telegram.org/bot1/sendMessage", "host": "api.telegram.org", "method": "POST", "type": "fetch", "post": "x"}]}, 1)
     assert any(e["kind"] == "exfil_channel" for e in bad.verdict()["evidence"])
+
+
+def test_swarm_debate_finds_contradictions_and_counts_votes():
+    from decoy import debate
+    ev = Evidence("http://x-offer.test/", [])
+    ev.add_state({"url": "http://x-offer.test/", "title": "Claim", "page": {"visible_text": "Claim your prize " * 5, "buttons": [{"id": 1, "text": "Go"}]}, "network": [
+        {"url": "http://drop-zone.test/c", "host": "drop-zone.test", "method": "POST", "type": "fetch", "canary_sent": ["PASSWORD"]}]}, 0)
+    v = ev.verdict()
+    v["swarm"] = []
+    results = {"endpoints": {"findings": ["The page made no background requests."]}, "script": {"findings": ["No scripts were found."]}, "lure": {"findings": ["Nothing unusual."]}}
+    cs = debate.code_conflicts(results, ev, v)
+    assert any(c["to"] == "endpoints" for c in cs) and all(c["to"] in results for c in cs)
+    events = []
+    ctx = {"use_model": False, "budget": None, "case": {"hosts": {"drop-zone.test": 1}, "start_host": "x-offer.test"}}
+    out = debate.run_debate(results, ev, v, ctx, events.append)
+    phases = [e["phase"] for e in events]
+    assert phases[0] == "share" and "challenge" in phases and "reply" in phases and phases[-1] == "consensus"
+    assert out["votes"]["endpoints"] == "alarm" and "drop-zone.test" in results["endpoints"]["findings"][0]

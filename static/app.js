@@ -156,6 +156,20 @@ function devtools(ev) {
   (ev.script_srcs || []).forEach(s => { if (DT.js.has(s)) return; DT.js.add(s); const d = document.createElement('div'); d.className = 'js'; d.innerHTML = `<small>external script</small><pre>${esc(s)}</pre>`; $('dtjs').appendChild(d); });
   $('dj').textContent = DT.js.size;
 }
+const DQ = {t: 0};
+function debateMsg(ev) {
+  $('debatecard').classList.remove('hidden');
+  const add = (cls, who, html, delay) => setTimeout(() => { const d = document.createElement('div'); d.className = 'dmsg ' + cls; d.innerHTML = `<b>${esc(who)}</b><p>${html}</p>`; $('dchat').appendChild(d); }, delay);
+  DQ.t = DQ.t + (ev.phase === 'share' ? 0 : 700);
+  const d = DQ.t;
+  if (ev.phase === 'share') add('sys', 'Evidence board', esc(ev.text), 0);
+  else if (ev.phase === 'challenge') add('chal', 'Review lead → ' + ev.name, esc(ev.text), d);
+  else if (ev.phase === 'reply') add(ev.stance === 'revise' ? 'rev' : 'keep', ev.name + (ev.stance === 'revise' ? ' revises' : ' keeps its finding'), esc(ev.text) + (ev.revised ? `<br><i>Now: ${esc(ev.revised)}</i>` : '') + `<small>${esc(ev.by)}</small>`, d);
+  else if (ev.phase === 'consensus') setTimeout(() => {
+    const names = {check: 'Reputation', tls: 'TLS', script: 'Script', endpoints: 'Endpoints', lure: 'Lure', intel: 'Intel', cloak: 'Cloak', geo: 'Location', privacy: 'Privacy'};
+    $('dvotes').classList.remove('hidden'); $('dvotes').innerHTML = `<div class="dsum"><b>${esc(ev.text)}</b></div><div class="vchips">` + Object.entries(ev.votes || {}).map(([a, v]) => `<span class="vc ${v}">${esc(names[a] || a)}: ${v}</span>`).join('') + '</div>';
+    trace(ev.text, 'swarm debate', ev.dissent && ev.dissent.length ? 'bad' : 'good'); }, d + 600);
+}
 function initQr() {
   $('qrfile').onchange = async () => {
     const f = $('qrfile').files[0]; if (!f) return; $('qrnote').textContent = 'Reading the QR code…';
@@ -225,6 +239,7 @@ function reset() {
   $('seal').className = 'seal'; $('seal').textContent = 'STARTING';
   evCount = 0; $('invcard').classList.add('hidden'); $('desks').innerHTML = ''; $('report').classList.add('hidden'); $('invbar').classList.add('hidden');
   WF.reset(); try { GLB.reset(); } catch (e) {}
+  $('dchat').innerHTML = ''; $('dvotes').classList.add('hidden'); $('debatecard').classList.add('hidden'); DQ.t = 0;
   DT.net.clear(); DT.js.clear(); DT.con = 0; ['dtnet', 'dtcon', 'dtck', 'dtjs'].forEach(i => $(i).innerHTML = ''); ['dn', 'dc', 'dk', 'dj'].forEach(i => $(i).textContent = 0); $('devcard').classList.add('hidden'); $('dtpost').classList.add('hidden'); $('lightbox').classList.add('hidden'); buildSwarm([]); $('memory').classList.add('hidden'); $('askbox').classList.add('hidden'); $('askout').classList.add('hidden'); $('askout').textContent = '';
   Object.keys(count).forEach(k => count[k] = 0);
   stat('sSteps', 0); stat('sBlocked', 0); stat('sLeaks', 0); stat('sCalls', 0);
@@ -326,6 +341,7 @@ function handle(ev) {
       if (ev.note) trace(ev.note, 'sandbox');
       break;
     case 'devtools': devtools(ev); break;
+    case 'debate': debateMsg(ev); break;
     case 'frame':  // live view of the sandbox browser: cursor moving and text being typed
       $('shot').src = ev.shot;
       break;

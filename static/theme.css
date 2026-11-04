@@ -394,3 +394,17 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 @media (max-width: 700px) { .wf-view { min-height: 1130px; } .wf-stage { height: 1130px; } }
 
 .wn b { overflow: hidden; text-overflow: ellipsis; } .wn { width: 170px; } .wn.core { width: 210px; }
+
+/* ---- swarm debate ---- */
+.dchat { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow: auto; }
+.dmsg { border-radius: 14px; padding: 9px 13px; background: rgba(8, 13, 28, .55); box-shadow: inset 3px 0 var(--blue); animation: slidein .4s ease; max-width: 92%; }
+.dmsg b { font-size: 12px; letter-spacing: .02em; color: var(--blue-glow); } .dmsg p { margin: 3px 0 0; font-size: 13.5px; } .dmsg small { display: block; margin-top: 3px; color: var(--muted); font-size: 10.5px; font-weight: 700; }
+.dmsg.sys { box-shadow: inset 3px 0 var(--muted); } .dmsg.chal { box-shadow: inset 3px 0 var(--orange); } .dmsg.chal b { color: #ffb277; }
+.dmsg.rev { box-shadow: inset 3px 0 #ffc48a; margin-left: 28px; } .dmsg.keep { box-shadow: inset 3px 0 var(--blue); margin-left: 28px; } .dmsg i { color: #ffd7b3; font-style: normal; }
+@keyframes slidein { from { opacity: 0; transform: translateY(8px); } }
+.dvotes { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); } .dsum b { font-size: 14px; }
+.vchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; } .vc { font-size: 11.5px; font-weight: 800; padding: 4px 10px; border-radius: 99px; background: rgba(255, 255, 255, .08); }
+.vc.alarm { background: var(--orange-soft); color: #ffb277; } .vc.concern { background: rgba(255, 162, 77, .15); color: #ffc58f; } .vc.clear { background: var(--blue-soft); color: #9ec3ff; } .vc.abstain { opacity: .5; }
+.we.argue { stroke: var(--blue-glow); stroke-width: 2.6; stroke-dasharray: 5 6; animation: wfdash .5s linear infinite; filter: drop-shadow(0 0 5px rgba(91, 155, 255, .8)); } .we.argue.hot { stroke: var(--orange); filter: drop-shadow(0 0 5px rgba(255, 122, 26, .8)); }
+.wf-view { min-height: 1240px; } .wf-stage { height: 1240px; } @media (max-width: 700px) { .wf-view { min-height: 1240px; } .wf-stage { height: 1240px; } }
+:root[data-theme="light"] .dmsg { background: rgba(236, 242, 255, .85); } :root[data-theme="light"] .dmsg.chal b { color: #b24a00; } :root[data-theme="light"] .vc { background: rgba(11, 21, 48, .07); } :root[data-theme="light"] .vc.alarm { color: #b24a00; } :root[data-theme="light"] .vc.clear { color: #174ec4; }

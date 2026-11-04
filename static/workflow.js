@@ -21,15 +21,16 @@ const WF = (() => {
     lure: [17, 750, '◎', 'Lure analyst', 'MiniMax · manipulation', 'model'],
     intel: [50, 750, '◈', 'Threat intel', 'memory · campaigns', 'code'],
     cloak: [83, 750, '⚖', 'Cloak detector', 'compares visitors', 'code'],
-    judge: [50, 855, '⚖', 'Evidence judge', 'code · score by rules', 'code'],
-    analysts: [17, 960, '🔎', 'Analyst team', 'Investigate mode', 'model'],
-    summary: [50, 960, '✎', 'Summary', 'GLM · plain words', 'model'],
-    human: [83, 960, '✓', 'Your decision', 'block · safe · dismiss', 'human'],
+    debate: [50, 855, '💬', 'Agent debate', 'share · challenge · vote', 'model'],
+    judge: [50, 960, '⚖', 'Evidence judge', 'code · score by rules', 'code'],
+    analysts: [17, 1065, '🔎', 'Analyst team', 'Investigate mode', 'model'],
+    summary: [50, 1065, '✎', 'Summary', 'GLM · plain words', 'model'],
+    human: [83, 1065, '✓', 'Your decision', 'block · safe · dismiss', 'human'],
   };
   const EDGES = [['control', 'link', 'model'], ['link', 'check'], ['link', 'geo'], ['link', 'tls'], ['check', 'sandbox'], ['sandbox', 'v_careless', 'model'], ['sandbox', 'v_phone'], ['sandbox', 'v_bot'],
     ['v_careless', 'net'], ['v_careless', 'destroy'], ['v_phone', 'destroy'], ['v_bot', 'destroy'],
     ['destroy', 'script', 'model'], ['destroy', 'endpoints', 'model'], ['destroy', 'privacy', 'model'], ['script', 'lure', 'model'], ['endpoints', 'intel'], ['privacy', 'cloak'],
-    ['lure', 'judge'], ['intel', 'judge'], ['cloak', 'judge'], ['judge', 'analysts', 'model'], ['judge', 'summary', 'model'], ['analysts', 'human', 'model'], ['summary', 'human']];
+    ['lure', 'debate'], ['intel', 'debate'], ['cloak', 'debate'], ['debate', 'judge', 'model'], ['judge', 'analysts', 'model'], ['judge', 'summary', 'model'], ['analysts', 'human', 'model'], ['summary', 'human']];
   const PARENT = {check: 'link', geo: 'link', tls: 'link', script: 'destroy', endpoints: 'destroy', privacy: 'destroy', lure: 'script', intel: 'endpoints', cloak: 'privacy'};
   const VISITOR = {careless: 'v_careless', phone: 'v_phone', bot: 'v_bot'};
   const INFO = {
@@ -50,6 +51,7 @@ const WF = (() => {
     lure: 'How the page manipulates the visitor: urgency, fear, brand borrowing, what it asks for. MiniMax assists.',
     intel: 'Threat memory (SQLite): earlier scans of this site and campaigns linked through the same data-collection server.',
     cloak: 'Compares what the laptop, the phone and the security bot were each shown. A login form hidden from the bot is cloaking.',
+    debate: 'The agents post their findings on one board. A review lead (another open model) challenges contradictions and gaps, the challenged agents answer (keep or revise), then every agent votes. Revisions change what an agent says, never the score.',
     judge: 'Plain code scores all the evidence. No model ever sets the verdict.',
     analysts: 'Investigate mode: the specialists above plus the network and infrastructure analysts, and a lead analyst, write the incident report.',
     summary: 'A Vultr AI model writes the plain-words summary. Code rejects it if it contradicts the score.',
@@ -128,6 +130,13 @@ const WF = (() => {
   function syncEdges() {  // a line shows only when both of its nodes have appeared
     document.querySelectorAll('#wfSvg .we').forEach(p => { const [a, b] = p.dataset.e.split('>'); p.style.opacity = (el[a] && el[b] && !el[a].classList.contains('ghost') && !el[b].classList.contains('ghost')) ? '' : '0'; });
   }
+  function argue(a, b, hot) {  // a temporary line between two agents while they argue
+    if (!el[a] || !el[b]) return; reveal([a, b], 0);
+    const p = document.createElementNS(NS, 'path'); p.setAttribute('d', pathD(a, b)); p.setAttribute('class', 'we argue' + (hot ? ' hot' : '')); $('wfSvg').appendChild(p);
+    const len = p.getTotalLength(), dot = document.createElementNS(NS, 'circle'); dot.setAttribute('r', 6); dot.setAttribute('class', 'wp' + (hot ? ' bad' : '')); $('wfSvg').appendChild(dot);
+    const t0 = performance.now(); (function step(t) { const k = Math.min(1, (t - t0) / 900), pt = p.getPointAtLength(k * len); dot.setAttribute('cx', pt.x); dot.setAttribute('cy', pt.y); if (t - t0 < 900) requestAnimationFrame(step); else dot.remove(); })(t0);
+    setTimeout(() => p.remove(), 2600);
+  }
   const edge = (a, b) => document.querySelector(`#wfSvg .we[data-e="${a}>${b}"]`);
   function light(a, b, bad) {
     const e = edge(a, b); if (!e) return;
@@ -190,6 +199,18 @@ const WF = (() => {
           else { state(ev.id, ev.weight >= 15 ? 'bad' : 'done', (ev.findings && ev.findings[0]) || 'done'); (ev.findings || []).slice(1).forEach(f => state(ev.id, null, f)); if (ev.by && ev.by !== 'rules') state(ev.id, null, `${(ev.findings || [])[0] || ''}`); }
         }, 250); break;
       }
+      case 'debate': {
+        const node = {v_careless: 'v_careless', v_phone: 'v_phone', v_bot: 'v_bot', evidence: 'debate'};
+        reveal('debate');
+        if (ev.phase === 'share') { ['lure', 'intel', 'cloak'].forEach(a => flow(a, 'debate')); state('debate', 'active', ev.text); head('The agents are debating', true); }
+        else if (ev.phase === 'challenge') { argue(node[ev.with] || ev.with, ev.to, true); state('debate', 'active', 'challenge → ' + ev.name); }
+        else if (ev.phase === 'reply') { argue(ev.from, 'debate', false); state(ev.from, ev.stance === 'revise' ? 'active' : 'done', (ev.stance === 'revise' ? 'revised: ' : 'kept: ') + (ev.revised || ev.text)); }
+        else if (ev.phase === 'consensus') {
+          Object.entries(ev.votes || {}).forEach(([a, vt]) => { if (el[a] && vt === 'alarm') el[a].classList.add('bad'); });
+          state('debate', ev.dissent && ev.dissent.length ? 'bad' : 'done', ev.total ? ev.agree + '/' + ev.total + ' agree' : 'no votes');
+        }
+        break;
+      }
       case 'signals': break;
       case 'sandbox':
         if (ev.phase === 'created') { flow('check', 'sandbox'); settle('sandbox'); state('sandbox', 'active', `${ev.info.name} · ${ev.info.mode}`); head('Visitors are browsing', true); }
@@ -207,7 +228,7 @@ const WF = (() => {
       case 'download': reveal('net'); flow('v_careless', 'net', true); state('net', 'bad', 'download kept inside: ' + ev.filename); break;
       case 'verdict':
         chatter(false); reveal('judge'); setTimeout(() => {
-          ['lure', 'intel', 'cloak'].forEach(a => flow(a, 'judge'));
+          flow('debate', 'judge');
           state('judge', ev.level === 'DANGEROUS' ? 'bad' : 'active', `${ev.level.toLowerCase()} · ${ev.score}/100`); reveal('summary');
           setTimeout(() => { flow('judge', 'summary'); settle('summary'); state('summary', 'active', ev.summary); }, 700);
         }, 400); break;
