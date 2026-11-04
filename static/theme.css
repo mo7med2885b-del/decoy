@@ -470,3 +470,17 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .dots { display: inline-flex; gap: 4px; } .dots s { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: dotb 1s infinite ease-in-out; } .dots s:nth-child(2) { animation-delay: .15s; } .dots s:nth-child(3) { animation-delay: .3s; }
 @keyframes dotb { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
 @media (max-width: 700px) { .wf-stage { height: 1560px; } .wf-view { min-height: 1560px; } .wn.chat { width: 94%; } .cr-list { height: 300px; } }
+
+/* ---- v4: illustrative chat room ---- */
+.wn.chat { width: min(680px, 94%); } .cr-list { height: 470px; }
+.cr-msg.post .cr-text { border-left: 3px solid hsl(var(--h, 220) 70% 55%); background: hsl(var(--h, 220) 70% 55% / .09); }
+.cr-duel { display: flex; align-items: center; gap: 7px; font-size: 12px; } .cr-duel b { font-size: 12.5px; }
+.cr-arrow { font-weight: 800; font-size: 11px; letter-spacing: .04em; color: var(--muted); } .cr-arrow.hot { color: var(--orange); animation: nudge 1s infinite ease-in-out; }
+@keyframes nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
+.cr-q { margin-top: 6px; font-weight: 600; } .cr-diff { margin-top: 8px; display: grid; gap: 4px; font-size: 12px; } .cr-diff s { color: var(--muted); opacity: .8; } .cr-diff span { padding: 5px 8px; border-radius: 8px; background: rgba(45, 123, 255, .15); font-weight: 600; }
+.cr-ok { margin-top: 6px; font-size: 12px; font-weight: 700; color: #3d9a59; }
+.cr-meter { display: flex; gap: 3px; height: 12px; margin-bottom: 8px; } .cr-meter i { flex: 1; border-radius: 4px; background: rgba(120, 150, 210, .35); } .cr-meter i.alarm { background: var(--orange); } .cr-meter i.concern { background: #f2b44d; } .cr-meter i.clear { background: #3d9a59; }
+.cr-big { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+
+.wf-stage { height: 1720px; } .wf-view { min-height: 1720px; }
+@media (max-width: 700px) { .wf-stage { height: 1720px; } .wf-view { min-height: 1720px; } }

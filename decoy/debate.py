@@ -110,7 +110,13 @@ def vote_of(aid: str, v: dict) -> str:
 
 def run_debate(results: dict, ev, v: dict, ctx, emit) -> dict:
     """Share, challenge, reply, vote, consensus. Emits one event per step so the canvas and the panel can show it live."""
-    emit({"type": "debate", "phase": "share", "agents": sorted(results), "text": f"{len(results)} agents post their findings on the shared evidence board."})
+    log = []
+
+    def emit(e, _emit=emit):  # every debate event is also kept, so the chat room can be replayed from a saved scan
+        log.append(e)
+        _emit(e)
+    posts = {aid: (r["findings"] or [""])[0][:170] for aid, r in results.items()}
+    emit({"type": "debate", "phase": "share", "agents": sorted(results), "posts": posts, "text": f"{len(results)} agents post their findings on the shared evidence board."})
     challenges = code_conflicts(results, ev, v)
     for c in critic_challenges(results, v, ctx):
         if len(challenges) < 3 and not any(x["to"] == c["to"] for x in challenges):
@@ -120,9 +126,10 @@ def run_debate(results: dict, ev, v: dict, ctx, emit) -> dict:
     with ThreadPoolExecutor(max_workers=3) as pool:
         replies = list(pool.map(lambda c: reply(c, results, v, ctx), challenges))
     for c, r in zip(challenges, replies):
+        was = (results[c["to"]]["findings"] or [""])[0][:170]
         if r.get("revised"):
             results[c["to"]]["findings"] = [r["revised"]] + results[c["to"]]["findings"][:2]
-        emit({"type": "debate", "phase": "reply", "from": c["to"], "name": AGENTS[c["to"]][0], "stance": r["stance"], "text": r["reply"], "revised": r.get("revised"), "by": r["by"]})
+        emit({"type": "debate", "phase": "reply", "from": c["to"], "name": AGENTS[c["to"]][0], "stance": r["stance"], "text": r["reply"], "revised": r.get("revised"), "was": was, "by": r["by"]})
     votes = {aid: vote_of(aid, v) for aid in results}
     aligned = "alarm" if v["level"] == "DANGEROUS" else "concern" if v["level"] == "SUSPICIOUS" else "clear"
     voting = {a: x for a, x in votes.items() if x != "abstain"}
@@ -139,4 +146,5 @@ def run_debate(results: dict, ev, v: dict, ctx, emit) -> dict:
     summary += (f" {len(challenges)} cross-examination question(s) asked and answered." if challenges else " No contradictions were found.")
     out = {"votes": votes, "agree": len(agree), "total": len(voting), "dissent": dissent, "challenges": len(challenges), "text": summary}
     emit({"type": "debate", "phase": "consensus", **out})
+    out["log"] = log
     return out
