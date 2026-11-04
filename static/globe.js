@@ -19,7 +19,11 @@ const GLB = (() => {
         .arcColor(d => d.color).arcStroke(0.55).arcDashLength(0.35).arcDashGap(0.18).arcDashAnimateTime(1400).arcAltitudeAutoScale(0.45)
         .ringColor(d => t => hexA(d.color, 1 - t)).ringMaxRadius(d => d.r || 5).ringPropagationSpeed(2.4).ringRepeatPeriod(1100)
         .htmlLat(d => d.lat).htmlLng(d => d.lng).htmlAltitude(0.06).htmlElement(d => label(d));
-      g.controls().autoRotate = true; g.controls().autoRotateSpeed = 0.7; g.controls().enableZoom = false;
+      g.controls().autoRotate = true; g.controls().autoRotateSpeed = 0.7; g.controls().enableZoom = true; g.controls().minDistance = 125; g.controls().maxDistance = 480; g.controls().zoomSpeed = 0.8;
+      g.onPointClick(p => focus(p)).pointRadius(d => d.role === 'origin' ? 0.55 : 0.8);
+      const zb = f => () => { const pv = g.pointOfView(); g.controls().autoRotate = false; g.pointOfView({altitude: Math.min(4, Math.max(0.2, pv.altitude * f))}, 450); };
+      $('gzin').onclick = zb(0.6); $('gzout').onclick = zb(1.6);
+      $('gzreset').onclick = () => { g.controls().autoRotate = !lure; g.pointOfView(lure ? {lat: lure.lat, lng: lure.lng, altitude: 1.6} : {lat: 25, lng: 20, altitude: 2.3}, 900); document.querySelectorAll('.glabel.open').forEach(x => x.classList.remove('open')); };
       const size = () => { const r = el.getBoundingClientRect(); g.width(r.width).height(r.height); };
       size(); new ResizeObserver(size).observe(el);
       g.pointOfView({lat: 25, lng: 20, altitude: 2.3}, 0);
@@ -29,8 +33,16 @@ const GLB = (() => {
   function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${Math.max(0, a)})`; }
   function label(d) {
     const e = document.createElement('div'); e.className = 'glabel ' + d.role;
-    e.innerHTML = `<b>${esc(d.title)}</b><small>${esc(d.sub)}</small>${d.role === 'lure' || d.role === 'exfil' ? `<i>${fmt(d.lat, d.lng)}${d.simulated ? ' · simulated' : ''}</i>` : ''}`;
+    e.innerHTML = `<b>${esc(d.title)}</b><small>${esc(d.sub)}</small>${d.role === 'lure' || d.role === 'exfil' ? `<i>${fmt(d.lat, d.lng)}${d.simulated ? ' · simulated' : ''}</i>` : ''}`
+      + `<span class="more">${d.ip && d.ip !== 'simulated' ? 'IP ' + esc(d.ip) + '<br>' : ''}${d.org ? esc(d.org) + '<br>' : ''}${d.simulated ? 'demo location (simulated)' : esc(d.role)}</span>`;
+    e.style.pointerEvents = 'auto'; e.style.cursor = 'pointer'; e.onclick = ev => { ev.stopPropagation(); focus(d); };
     return e;
+  }
+  function focus(d) {
+    document.querySelectorAll('.glabel.open').forEach(x => x.classList.remove('open'));
+    const el = [...document.querySelectorAll('.glabel')].find(x => x.querySelector('b') && x.querySelector('b').textContent === (d.title || d.host)); if (el) el.classList.add('open');
+    fly(d.lat, d.lng, 0.55, 1200);
+    hud(`${d.title || d.host}${d.ip && d.ip !== 'simulated' ? ' · ' + d.ip : ''}${d.org ? ' · ' + d.org : ''}`, '');
   }
   function hud(text, state) { if ($('ghud')) { $('ghud').textContent = text; $('gstate').textContent = state; $('gstate').className = 'gstate ' + (state ? state.toLowerCase().replace(/\W+/g, '-') : ''); } }
   function refresh() { if (!g) return; g.pointsData(points).arcsData(arcs).ringsData(rings).htmlElementsData(labels); }
@@ -53,8 +65,8 @@ const GLB = (() => {
       fly(origin.lat, origin.lng, 1.9, 1400); hud('Resolving where the link really points…', 'LOCATING');
     } else if (ev.type === 'geo') {
       const where = [ev.city, ev.code].filter(Boolean).join(', ') || ev.country || 'unknown';
-      points.push({lat: ev.lat, lng: ev.lng, color: COLORS[ev.role] || COLORS.contacted, role: ev.role});
-      labels.push({lat: ev.lat, lng: ev.lng, role: ev.role, title: ev.host, sub: `${ev.role === 'exfil' ? 'stolen data → ' : ''}${where}`, simulated: ev.simulated});
+      points.push({lat: ev.lat, lng: ev.lng, color: COLORS[ev.role] || COLORS.contacted, role: ev.role, title: ev.host, ip: ev.ip, org: ev.org});
+      labels.push({lat: ev.lat, lng: ev.lng, role: ev.role, ip: ev.ip, org: ev.org, title: ev.host, sub: `${ev.role === 'exfil' ? 'stolen data → ' : ''}${where}`, simulated: ev.simulated});
       rings.push({lat: ev.lat, lng: ev.lng, color: COLORS[ev.role] || COLORS.contacted, r: ev.role === 'exfil' ? 8 : 6});
       if (ev.role === 'lure') {
         lure = ev;

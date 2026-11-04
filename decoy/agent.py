@@ -21,7 +21,7 @@ from concurrent.futures import ThreadPoolExecutor
 from . import geo as geo_mod
 from . import reputation
 from . import investigate, store
-from .verdict import Evidence, cloaking, template_summary
+from .verdict import Evidence, cloaking, is_telemetry, template_summary
 
 MAX_ACTIONS = 6
 SUBMIT_WORDS = re.compile(r"sign|log ?in|continue|verify|confirm|next|submit|unlock|pay|claim|download|view|open|start", re.I)
@@ -198,7 +198,7 @@ def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, 
             if tracker:
                 for n in state.get("network", []):
                     if n.get("host") and not n.get("blocked"):
-                        tracker.seen(n["host"], "exfil" if n.get("canary_sent") else "contacted")
+                        tracker.seen(n["host"], "exfil" if n.get("canary_sent") and not is_telemetry(n["host"]) else "contacted")
                 for r in state.get("redirects") or []:
                     h = urlsplit(r.get("to") or "").hostname
                     if h:

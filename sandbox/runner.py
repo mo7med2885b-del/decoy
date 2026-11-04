@@ -206,7 +206,9 @@ class Runner:
                     prev = prev.replace(v, f"<{k}>").replace(v.replace("@", "%40"), f"<{k}>")
             entry["post"] = prev
         hay = (req.url + " " + body).lower()
-        sent = [k for k, v in self.canary.items() if v and (v.lower() in hay or v.lower().replace("@", "%40") in hay)]
+        sent = [k for k, v in self.canary.items() if v and len(v) >= 8 and (v.lower() in hay or v.lower().replace("@", "%40") in hay)]
+        if "CARD" in sent and self.canary.get("CVV") and self.canary["CVV"] in hay:
+            sent.append("CVV")  # the short code only counts together with the card number
         if sent:
             entry["canary_sent"] = sent
         if self.requests_seen > MAX_REQUESTS:

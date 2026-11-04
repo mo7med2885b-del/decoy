@@ -259,3 +259,15 @@ def test_clean_wording_is_not_a_trust_rating():
     from decoy.verdict import template_summary
     s = template_summary({"level": "NO THREAT FOUND", "page_title": "Hello", "page_host": "x.org", "limits": []})
     assert "not a trust rating" in s and "looks fine" not in s
+
+
+def test_error_monitoring_is_a_privacy_note_not_theft_and_phishing_channels_are_serious():
+    ev = Evidence("https://corvrax.example/", [])
+    ev.add_state({"url": "https://corvrax.example/", "title": "App", "page": {"visible_text": "x" * 200, "buttons": [{"id": 1, "text": "Go"}]},
+                  "network": [{"url": "https://o1.ingest.de.sentry.io/api/1/envelope/", "host": "o1.ingest.de.sentry.io", "method": "POST", "type": "fetch", "canary_sent": ["PASSWORD"]}]}, 1)
+    v = ev.verdict()
+    assert v["level"] != "DANGEROUS" and v["attacker_got"] == [] and any(e["kind"] == "telemetry_leak" for e in v["evidence"])
+    bad = Evidence("https://x-offer.example/", [])
+    bad.add_state({"url": "https://x-offer.example/", "title": "Claim", "page": {"visible_text": "Claim your prize" * 10}, "network": [
+        {"url": "https://api.telegram.org/bot1/sendMessage", "host": "api.telegram.org", "method": "POST", "type": "fetch", "post": "x"}]}, 1)
+    assert any(e["kind"] == "exfil_channel" for e in bad.verdict()["evidence"])

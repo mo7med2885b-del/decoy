@@ -48,13 +48,19 @@ const WF = (() => {
       stage.appendChild(d); el[id] = d; hist[id] = []; drag(d, id);
     });
     draw(); addEventListener('resize', draw);
-    $('wfReset').onclick = () => { Object.entries(NODES).forEach(([id, n]) => { el[id].style.left = n[0] + '%'; el[id].style.top = n[1] + 'px'; }); draw(); };
+    $('wzin').onclick = () => { zoom += 0.15; applyZoom(); draw(); }; $('wzout').onclick = () => { zoom -= 0.15; applyZoom(); draw(); }; $('wzfit').onclick = () => { zoom = 1; applyZoom(); draw(); };
+    $('wfView').addEventListener('wheel', e => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoom += e.deltaY < 0 ? 0.1 : -0.1; applyZoom(); draw(); } }, {passive: false});
+    $('wfReset').onclick = () => { zoom = 1; applyZoom(); Object.entries(NODES).forEach(([id, n]) => { el[id].style.left = n[0] + '%'; el[id].style.top = n[1] + 'px'; }); draw(); };
+  }
+  let zoom = 1;
+  function applyZoom() {
+    const st = $('wfStage'), view = $('wfView'); zoom = Math.min(1.8, Math.max(0.5, zoom));
+    st.style.transformOrigin = '0 0'; st.style.transform = `scale(${zoom})`; st.style.marginLeft = zoom < 1 ? `${(1 - zoom) / 2 * 100}%` : '0';
+    view.style.height = (st.offsetHeight * zoom) + 'px'; view.style.overflowX = zoom > 1 ? 'auto' : 'hidden'; $('wzfit').textContent = Math.round(zoom * 100) + '%';
   }
   function box(id) {
-    const s = $('wfStage').getBoundingClientRect(), r = el[id].getBoundingClientRect();
-    // use the unscaled layout box (active nodes are scaled up a little)
-    const w = el[id].offsetWidth, h = el[id].offsetHeight;
-    return {x: r.left + r.width / 2 - s.left, y: r.top + r.height / 2 - s.top, w: w / 2, h: h / 2};
+    const n = el[id];  // layout coordinates inside the stage: unaffected by the canvas zoom and by the active-node scale
+    return {x: n.offsetLeft, y: n.offsetTop, w: n.offsetWidth / 2, h: n.offsetHeight / 2};
   }
   function pathD(a, b) {
     const p = box(a), q = box(b), horiz = Math.abs(q.y - p.y) < 20;
@@ -72,7 +78,7 @@ const WF = (() => {
     });
     d.addEventListener('pointermove', e => {
       if (!d.hasPointerCapture(e.pointerId)) return;
-      const dx = e.clientX - sx, dy = e.clientY - sy; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; if (!moved) return;
+      const dx = (e.clientX - sx) / zoom, dy = (e.clientY - sy) / zoom; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; if (!moved) return;
       const st = $('wfStage'), w = st.clientWidth, h = st.clientHeight;
       const x = Math.min(w - 40, Math.max(40, ox + dx)), y = Math.min(h - 25, Math.max(25, oy + dy));
       d.style.left = (x / w * 100) + '%'; d.style.top = y + 'px'; draw();

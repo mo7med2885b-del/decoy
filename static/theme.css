@@ -362,3 +362,13 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 :root[data-theme="light"] .dpost, :root[data-theme="light"] #dtjs pre { background: #eef3ff; } :root[data-theme="light"] .dtabs button { background: #fff; box-shadow: inset 0 0 0 1.5px #c5d2ee; } :root[data-theme="light"] .dtabs button.on { background: var(--blue-soft); box-shadow: inset 0 0 0 2px var(--blue); }
 :root[data-theme="light"] .dt tr.leak { background: var(--orange-soft); } :root[data-theme="light"] .fl { color: #b24a00; } :root[data-theme="light"] #evidence li.limit { color: #9a3f00; }
 @media (max-width: 900px) { .desks { grid-template-columns: 1fr 1fr; } } @media (max-width: 600px) { .desks { grid-template-columns: 1fr; } }
+
+/* ---- zoom controls ---- */
+.gzoom { position: absolute; z-index: 4; right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
+.gzoom button, .wzoom button { border: 0; width: 36px; height: 36px; border-radius: 12px; cursor: pointer; font-size: 20px; line-height: 1; font-weight: 700; background: rgba(12, 20, 40, .8); color: #dbe7ff; box-shadow: inset 0 0 0 1px rgba(143, 176, 255, .35); backdrop-filter: blur(6px); }
+.gzoom button:hover, .wzoom button:hover { box-shadow: inset 0 0 0 1.5px var(--blue); }
+.wzoom { display: inline-flex; gap: 4px; margin-left: auto; } .wzoom button { width: 30px; height: 26px; border-radius: 9px; font-size: 15px; } .wzoom #wzfit { width: 48px; font-size: 11.5px; }
+:root[data-theme="light"] .wzoom button { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1px #c5d2ee; }
+.wf-view { position: relative; width: 100%; overflow: hidden; } .wf-hint { flex-wrap: wrap; } .wf-hint .wf-cancel { margin-left: 0; }
+.glabel .more { display: none; margin-top: 3px; padding-top: 3px; border-top: 1px solid rgba(143, 176, 255, .3); color: #bcd3ff; font-size: 10px; white-space: normal; }
+.glabel.open { z-index: 20; max-width: 260px; border-color: #fff; } .glabel.open .more { display: block; }

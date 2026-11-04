@@ -11,6 +11,17 @@ URGENCY = re.compile(r"\b(locked|suspended|within 24 hours|verify (your|my)|unus
 AI_ORDER = re.compile(r"\b(ignore (all |any )?previous instructions|ai (assistant|agent)s?|security scanners?|"
                       r"report (this|it) (site )?as safe|you are an? (ai|assistant))\b", re.I)
 SHORT_HOSTS = {"bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "cutt.ly", "rb.gy", "go-short.test"}
+TELEMETRY = ("sentry.io", "datadoghq.com", "logrocket.", "fullstory.com", "hotjar.", "segment.", "mixpanel.com", "amplitude.com", "posthog.com", "clarity.ms",
+             "google-analytics.com", "googletagmanager.com", "doubleclick.net", "newrelic.com", "nr-data.net", "bugsnag.com", "rollbar.com", "browser-intake", "heap.io", "smartlook.com")
+EXFIL_CHANNELS = (("api.telegram.org", "a Telegram bot"), ("discord.com", "a Discord webhook"), ("discordapp.com", "a Discord webhook"), ("hooks.slack.com", "a Slack webhook"),
+                  ("script.google.com", "a Google Apps Script endpoint"), ("formspree.io", "a form-mail relay"), ("web3forms.com", "a form-mail relay"), ("api.emailjs.com", "an email relay"))
+
+
+def is_telemetry(host: str) -> bool:
+    h = (host or "").lower()
+    return any(h == t or h.endswith("." + t) or (t.endswith(".") and t in h) for t in TELEMETRY)
+
+
 LABELS = {"EMAIL": "email address", "PASSWORD": "password", "CARD": "card number", "CVV": "card security code",
           "NAME": "full name", "PHONE": "phone number"}
 
@@ -148,7 +159,9 @@ class Evidence:
         start_site = site(self.start_host)
         for dest, kinds in self.leaks.items():
             what = ", ".join(LABELS.get(k, k.lower()) for k in sorted(kinds))
-            if site(dest) != start_site:
+            if is_telemetry(dest):
+                items.append({"kind": "telemetry_leak", "weight": 12, "text": f"What was typed also reached an analytics or error-monitoring service ({dest}). That is common and not theft, but it means typed text can be recorded."})
+            elif site(dest) != start_site:
                 items.append({"kind": "credentials_sent_elsewhere", "weight": 60,
                               "text": f"When we typed a FAKE {what}, the page secretly sent it to another server: {dest}."})
             else:
@@ -204,11 +217,15 @@ class Evidence:
             limits.append("A bot check (CAPTCHA) appeared. Decoy does not solve those, so anything behind it was not seen.")
         if "verification" in self.gates:
             limits.append("The page asked for an email or SMS verification code. Decoy never creates real accounts or reads real inboxes, so it stopped there; what the page does after sign-up was not seen.")
+        for e in self.endpoints:
+            for dom, label in EXFIL_CHANNELS:
+                if (e["host"] == dom or e["host"].endswith("." + dom)) and e.get("method") == "POST" and not any(i["kind"] == "exfil_channel" for i in items):
+                    items.append({"kind": "exfil_channel", "weight": 30, "text": f"The page sends data to {label} ({e['host']}). Phishing kits use these to collect what victims type."})
         score = min(100, sum(i["weight"] for i in items))
         level = "DANGEROUS" if score >= 60 else "SUSPICIOUS" if score >= 25 else \
             "LOOKS SAFE" if self.official and score < 10 else "NO THREAT FOUND"
         items = sorted((i for i in items if i["weight"] > 0), key=lambda i: -i["weight"])
-        got = [{"host": h, "data": sorted(k)} for h, k in self.leaks.items() if site(h) != start_site]
+        got = [{"host": h, "data": sorted(k)} for h, k in self.leaks.items() if site(h) != start_site and not is_telemetry(h)]
         # What was checked and passed (shown on clean results so the answer is concrete).
         checks = [self.official or "The address does not imitate a well-known brand."] if not any(
             i["kind"] == "lookalike_domain" for i in items) else []
