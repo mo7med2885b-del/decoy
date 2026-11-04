@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlsplit
 
 from . import llm, reputation
+from .config import env
 from .guard import Budget
 
 HOST_RE = re.compile(r"\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b", re.I)
@@ -200,17 +201,17 @@ def rules_findings2(role: str, case: dict) -> list[str]:
 
 
 ANALYSTS = [
-    {"id": "network", "name": "Network analyst", "icon": "⌁",
+    {"id": "network", "model": "glm-5.3-flash", "name": "Network analyst", "icon": "⌁",
      "system": "You are a network analyst. From <DATA> (requests, hosts, redirects, leaks, blocked probes) explain how data moved and where it went."},
-    {"id": "script", "name": "Script reverse engineer", "icon": "‹/›",
+    {"id": "script", "model": "deepseek-v4.1-flash-1017", "name": "Script reverse engineer", "icon": "‹/›",
      "system": "You are a malware reverse engineer. From <DATA> (page scripts) explain what the code does: what it reads, where it sends it, any obfuscation or redirects."},
-    {"id": "endpoint", "name": "Endpoint hunter", "icon": "⇄",
+    {"id": "endpoint", "model": "qwen3.8-flash-next", "name": "Endpoint hunter", "icon": "⇄",
      "system": "You are an API and endpoint analyst. From <DATA> (background requests with status and a redacted payload preview) list which endpoints the page calls, which carry form data, and what shape the payload has."},
-    {"id": "cookies", "name": "Cookie and tracker inspector", "icon": "◔",
+    {"id": "cookies", "model": "mimo-v2.6-flash", "name": "Cookie and tracker inspector", "icon": "◔",
      "system": "You are a web privacy analyst. From <DATA> (cookies with flags, console messages) explain what is stored in the browser, what is weak, and any tracking."},
-    {"id": "lure", "name": "Lure analyst", "icon": "◎",
+    {"id": "lure", "model": "minimax-m3.1-flash", "name": "Lure analyst", "icon": "◎",
      "system": "You are a social-engineering analyst. From <DATA> (page title, asked data, urgency, evidence) explain how the page tries to manipulate the visitor."},
-    {"id": "infra", "name": "Infrastructure investigator", "icon": "◈",
+    {"id": "infra", "model": "qwen3.8-flash-next", "name": "Infrastructure investigator", "icon": "◈",
      "system": "You are a threat-infrastructure investigator. From <DATA> (domains, resolved IPs, earlier scans, evidence) explain how the attacker's infrastructure is organised and whether it is part of a campaign."},
 ]
 FORMAT = ('\nAnswer with JSON only: {"findings": ["<=3 short plain sentences, each under 200 characters>"]}. Use ONLY facts in <DATA>. '
@@ -242,12 +243,18 @@ def analyst_run(a: dict, case: dict, budget: Budget, use_model: bool) -> dict:
             if a["id"] == "infra":
                 slice_["resolved"] = resolve(list(case["hosts"]))
             budget.max_calls = max(budget.max_calls, 1)
-            text = llm.chat(budget, a["system"] + FORMAT, "<DATA>\n" + json.dumps(slice_)[:6000] + "\n</DATA>", max_tokens=600)
+            want = env("DECOY_MODEL_" + a["id"].upper(), a.get("model") or "")
+            used = want or llm.model_name()
+            prompt = "<DATA>\n" + json.dumps(slice_)[:6000] + "\n</DATA>"
+            text = llm.chat(budget, a["system"] + FORMAT, prompt, max_tokens=900, model=want or None)
             parsed = llm.parse_json(text) or {}
+            if not parsed.get("findings") and want:  # this model gave nothing usable: ask the default model instead
+                used = llm.model_name()
+                parsed = llm.parse_json(llm.chat(budget, a["system"] + FORMAT, prompt, max_tokens=900)) or {}
             allowed = set(case["hosts"]) | {case["start_host"]} | {i["value"] for i in iocs(case)} | set(slice_.get("resolved", {}))
             good = _clean(parsed.get("findings"), allowed)
             if good:
-                findings, by = good + [f for f in fallback if f not in good][:1], llm.model_name()
+                findings, by = good + [f for f in fallback if f not in good][:1], used
         except Exception:
             pass
     return {"id": a["id"], "name": a["name"], "findings": findings, "by": by}
