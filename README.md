@@ -1,4 +1,6 @@
-# Decoy
+<p align="center"><img src="assets/logo.png" alt="Decoy logo" width="120"></p>
+
+<h1 align="center">Decoy</h1>
 
 **Open a suspicious link without risking your machine.**
 

@@ -296,3 +296,6 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .tw { overflow-x: auto; } .ioc { width: 100%; border-collapse: collapse; font-size: 12.5px; } .ioc th { text-align: left; color: var(--muted); font-weight: 700; padding: 6px 8px; }
 .ioc td { padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; } .ioc code { font: 12px "JetBrains Mono", Consolas, monospace; overflow-wrap: anywhere; }
 @media (max-width: 900px) { .desks, .rcols { grid-template-columns: 1fr; } .modes { grid-template-columns: 1fr; } }
+
+.logo { background: transparent !important; padding: 0; overflow: hidden; } .logo img { width: 100%; height: 100%; display: block; border-radius: 50%; }
+:root[data-theme="light"] .logo { background: transparent !important; }

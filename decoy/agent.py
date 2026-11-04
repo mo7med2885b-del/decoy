@@ -9,6 +9,7 @@ import json
 import re
 import secrets
 import time
+from urllib.parse import urlsplit
 
 from . import llm
 from .config import DEMO_SUFFIX, RUNS, env
@@ -17,6 +18,7 @@ from .sandbox import Sandbox, SandboxError
 from .urlcheck import domain_signals
 from concurrent.futures import ThreadPoolExecutor
 
+from . import geo as geo_mod
 from . import investigate, store
 from .verdict import Evidence, cloaking, template_summary
 
@@ -164,7 +166,7 @@ def describe(state: dict) -> str:
 
 
 def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, budget: Budget, use_model: bool, canary: dict,
-            on_frame=None, max_actions: int = MAX_ACTIONS) -> dict:
+            on_frame=None, max_actions: int = MAX_ACTIONS, tracker=None) -> dict:
     """One visitor opens the link in its own fresh sandbox, acts like a person, and everything is recorded into `ev`.
     The sandbox is destroyed before this returns, whatever happens."""
     lead = bool(persona.get("lead"))
@@ -187,6 +189,14 @@ def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, 
                 shot_url = f"/runs/{scan_id}/{prefix}-{step}.jpg"
                 first_shot = first_shot or shot_url
             ev.add_state(state, step)
+            if tracker:
+                for n in state.get("network", []):
+                    if n.get("host") and not n.get("blocked"):
+                        tracker.seen(n["host"], "exfil" if n.get("canary_sent") else "contacted")
+                for r in state.get("redirects") or []:
+                    h = urlsplit(r.get("to") or "").hostname
+                    if h:
+                        tracker.seen(h, "redirect")
             for n in state.get("network", []):
                 if n.get("blocked"):
                     emit({"type": "containment", "step": step, "url": n["url"], "reason": n.get("reason")})
@@ -246,7 +256,9 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
     swarm = [p for p in PERSONAS if p.get("lead")] if (official or env("DECOY_SWARM", "1") != "1") else list(PERSONAS)
     canaries = {p["id"]: make_canary() for p in swarm}
     lead = swarm[0]
-    emit({"type": "start", "url": url, "canary": canaries[lead["id"]], "planner": llm.model_name(),
+    tracker = geo_mod.Tracker(emit)
+    tracker.seen(urlsplit(url).hostname or "", "lure")
+    emit({"type": "start", "url": url, "origin": geo_mod.origin(), "canary": canaries[lead["id"]], "planner": llm.model_name(),
           "swarm": [{"id": p["id"], "name": p["name"], "device": p["device"]} for p in swarm]})
     if signals:
         emit({"type": "signals", "items": signals})
@@ -269,10 +281,21 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
 
     evs = {p["id"]: Evidence(url, signals) for p in swarm}
     results: dict[str, dict] = {}
+
+    def visit(p):
+        """One visitor, one sandbox. A scout that could not even open the page gets one retry in a brand-new sandbox,
+        so a flaky load is never mistaken for a page that treats visitors differently."""
+        lead_visitor = bool(p.get("lead"))
+        res = explore(p, url, scan_id, out_dir, evs[p["id"]], emit if lead_visitor else scout_emit(p), budget, use_model, canaries[p["id"]],
+                      live_frame if lead_visitor else None, 6 if lead_visitor else 3, tracker)
+        if not lead_visitor and res["error"] and not res["first_shot"] and budget.time_left() > 20:
+            evs[p["id"]] = Evidence(url, signals)
+            res = explore(p, url, scan_id, out_dir, evs[p["id"]], scout_emit(p), budget, use_model, canaries[p["id"]], None, 3, tracker)
+            res["retried"] = True
+        return res
+
     with ThreadPoolExecutor(max_workers=len(swarm)) as pool:
-        futs = {p["id"]: pool.submit(explore, p, url, scan_id, out_dir, evs[p["id"]], emit if p.get("lead") else scout_emit(p), budget,
-                                     use_model, canaries[p["id"]], live_frame if p.get("lead") else None, 6 if p.get("lead") else 3)
-                for p in swarm}
+        futs = {p["id"]: pool.submit(visit, p) for p in swarm}
         for pid, f in futs.items():
             try:
                 results[pid] = f.result()
@@ -293,6 +316,9 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
         ev.extra.append(c)
         emit({"type": "cloaking", "text": c["text"]})
     v = ev.verdict()
+    for g in v["attacker_got"]:
+        tracker.seen(g["host"], "exfil")
+    tracker.wait()
     mem = store.memory(url, [g["host"] for g in v["attacker_got"]], exclude_id=scan_id)
     if mem["campaign"]:
         hosts = sorted({m["shared_server"] for m in mem["campaign"]})

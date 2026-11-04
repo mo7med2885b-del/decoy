@@ -191,7 +191,7 @@ def cloaking(personas: list[dict]) -> dict | None:
     """Compare what each visitor of the swarm saw first. A page that shows different things to different
     visitors (for example a harmless page to a security bot and a login form to a person) is cloaking.
     personas: [{"name", "sig": (title, asked_password) or None}]"""
-    seen = [p for p in personas if p.get("sig")]
+    seen = [p for p in personas if p.get("sig") and p["sig"][0] is not None]  # only visitors that really loaded the page
     if len(seen) < 2:
         return None
     pw = {p["name"] for p in seen if p["sig"][1]}

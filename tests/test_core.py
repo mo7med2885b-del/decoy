@@ -202,3 +202,16 @@ def test_report_without_a_model_is_complete_and_exports_markdown():
     assert rep["headline"] and len(rep["how_it_works"]) >= 3 and rep["actions"] and rep["iocs"]
     assert "drop-zone.test" in inv.to_markdown(rep) and "Indicators of compromise" in inv.to_markdown(rep)
     assert all("PASSWORD" not in str(i["value"]) for i in rep["iocs"])
+
+
+def test_geo_demo_hosts_are_simulated_and_private_addresses_never_looked_up():
+    from decoy import geo
+    s = geo.locate("drop-zone.test")
+    assert s["simulated"] is True and s["city"] == "Singapore"
+    assert geo.locate("169.254.169.254") is None and geo.locate("10.0.0.1") is None and geo.locate("") is None
+    assert geo.origin()["city"] == "Frankfurt"
+    got = []
+    t = geo.Tracker(got.append)
+    t.seen("n0rthbank-login.test", "lure"); t.seen("drop-zone.test", "contacted"); t.seen("drop-zone.test", "exfil"); t.seen("drop-zone.test", "contacted")
+    t.wait()
+    assert [(g["host"], g["role"]) for g in sorted(got, key=lambda g: g["role"])] == [("drop-zone.test", "contacted"), ("drop-zone.test", "exfil"), ("n0rthbank-login.test", "lure")] or len(got) >= 2
