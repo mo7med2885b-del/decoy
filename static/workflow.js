@@ -128,7 +128,7 @@ const WF = (() => {
     syncEdges();
   }
   function syncEdges() {  // a line shows only when both of its nodes have appeared
-    document.querySelectorAll('#wfSvg .we').forEach(p => { const [a, b] = p.dataset.e.split('>'); p.style.opacity = (el[a] && el[b] && !el[a].classList.contains('ghost') && !el[b].classList.contains('ghost')) ? '' : '0'; });
+    document.querySelectorAll('#wfSvg .we').forEach(p => { if (!p.dataset.e) return; const [a, b] = p.dataset.e.split('>'); p.style.opacity = (el[a] && el[b] && !el[a].classList.contains('ghost') && !el[b].classList.contains('ghost')) ? '' : '0'; });
   }
   function argue(a, b, hot) {  // a temporary line between two agents while they argue
     if (!el[a] || !el[b]) return; reveal([a, b], 0);
