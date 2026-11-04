@@ -372,3 +372,13 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .wf-view { position: relative; width: 100%; overflow: hidden; } .wf-hint { flex-wrap: wrap; } .wf-hint .wf-cancel { margin-left: 0; }
 .glabel .more { display: none; margin-top: 3px; padding-top: 3px; border-top: 1px solid rgba(143, 176, 255, .3); color: #bcd3ff; font-size: 10px; white-space: normal; }
 .glabel.open { z-index: 20; max-width: 260px; border-color: #fff; } .glabel.open .more { display: block; }
+
+/* ---- bigger workflow canvas (the old one was squeezed by its flex parent) ---- */
+.layout { grid-template-columns: minmax(0, 1fr) 580px; }
+.wfpanel { position: static; max-height: none; overflow: visible; align-self: start; }
+.wf-view { flex: none; min-height: 940px; }
+.wf-stage { height: 940px; }
+.wn { width: 176px; padding: 10px 12px 10px 10px; border-radius: 15px; } .wn b { font-size: 13.5px; } .wn small { font-size: 10.5px; } .wn .live { font-size: 10.5px; }
+.wn.core { width: 200px; }
+@media (max-width: 1150px) { .layout { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .wf-view { min-height: 940px; } .wf-stage { height: 940px; } .wn { width: 150px; padding: 8px 9px; } .wn.core { width: 170px; } }

@@ -3,18 +3,18 @@ const WF = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   // id: [x%, y%, icon, title, subtitle, kind]
   const NODES = {
-    control: [50, 62, '', 'Decoy control plane', 'Vultr VM · plans and verifies', 'core'],
-    link: [50, 152, '✉', 'Suspicious link', 'email · WhatsApp · text', 'code'],
-    check: [50, 230, '⌁', 'Address check', 'code · look-alikes', 'code'],
-    sandbox: [50, 308, '▣', 'Sealed browser', 'a fresh Docker box each', 'code'],
-    explore: [27, 410, '◉', 'Explorer agent', 'Vultr AI · small model', 'model'],
-    net: [73, 410, '⛨', 'Egress filter', 'code · blocks private IPs', 'code'],
-    memory: [73, 505, '◈', 'Threat memory', 'SQLite · seen before?', 'code'],
-    destroy: [27, 505, '✕', 'Sandbox destroyed', 'lifecycle', 'code'],
-    analysts: [73, 596, '🔎', 'Analyst team', 'Vultr AI · investigate mode', 'model'],
-    judge: [27, 596, '⚖', 'Evidence judge', 'code · score by rules', 'code'],
-    summary: [27, 694, '✎', 'Summary', 'Vultr AI · small model', 'model'],
-    human: [73, 694, '✓', 'Your decision', 'block · safe · dismiss', 'human'],
+    control: [50, 74, '', 'Decoy control plane', 'Vultr VM · plans and verifies', 'core'],
+    link: [50, 182, '✉', 'Suspicious link', 'email · WhatsApp · text', 'code'],
+    check: [50, 276, '⌁', 'Address check', 'code · look-alikes', 'code'],
+    sandbox: [50, 370, '▣', 'Sealed browser', 'a fresh Docker box each', 'code'],
+    explore: [27, 492, '◉', 'Explorer agent', 'Vultr AI · small model', 'model'],
+    net: [73, 492, '⛨', 'Egress filter', 'code · blocks private IPs', 'code'],
+    memory: [73, 606, '◈', 'Threat memory', 'SQLite · seen before?', 'code'],
+    destroy: [27, 606, '✕', 'Sandbox destroyed', 'lifecycle', 'code'],
+    analysts: [73, 715, '🔎', 'Analyst team', 'Vultr AI · investigate mode', 'model'],
+    judge: [27, 715, '⚖', 'Evidence judge', 'code · score by rules', 'code'],
+    summary: [27, 833, '✎', 'Summary', 'Vultr AI · small model', 'model'],
+    human: [73, 833, '✓', 'Your decision', 'block · safe · dismiss', 'human'],
   };
   const EDGES = [['control', 'link', 'model'], ['link', 'check'], ['check', 'sandbox'], ['sandbox', 'explore', 'model'], ['sandbox', 'net'],
     ['explore', 'destroy'], ['destroy', 'judge'], ['net', 'memory'], ['memory', 'judge'], ['judge', 'analysts', 'model'], ['analysts', 'human', 'model'], ['judge', 'summary', 'model'], ['summary', 'human']];
@@ -56,7 +56,7 @@ const WF = (() => {
   function applyZoom() {
     const st = $('wfStage'), view = $('wfView'); zoom = Math.min(1.8, Math.max(0.5, zoom));
     st.style.transformOrigin = '0 0'; st.style.transform = `scale(${zoom})`; st.style.marginLeft = zoom < 1 ? `${(1 - zoom) / 2 * 100}%` : '0';
-    view.style.height = (st.offsetHeight * zoom) + 'px'; view.style.overflowX = zoom > 1 ? 'auto' : 'hidden'; $('wzfit').textContent = Math.round(zoom * 100) + '%';
+    view.style.height = Math.max(st.offsetHeight * zoom, 300) + 'px'; view.style.minHeight = '0'; view.style.overflowX = zoom > 1 ? 'auto' : 'hidden'; $('wzfit').textContent = Math.round(zoom * 100) + '%';
   }
   function box(id) {
     const n = el[id];  // layout coordinates inside the stage: unaffected by the canvas zoom and by the active-node scale

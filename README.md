@@ -39,13 +39,24 @@ You can also press **Investigate like a security analyst** on any finished simpl
 ## Investigate mode
 <p align="center"><img src="assets/screens/investigation.jpg" alt="Analyst investigation: three analyst desks, the incident report with how the scam works, ATT&CK labels, actions and indicators" width="100%"></p>
 
-Four roles, each a separate call to a small Vultr AI model, working in parallel:
+Six specialists plus a lead analyst, each a separate call to a small Vultr AI model, working in parallel (the workflow canvas is movable and zoomable; click any node for its details):
 - **Network analyst**: how data moved and where it went.
 - **Script reverse engineer**: what the page's code reads, sends, hides and redirects (plus rule-based static checks).
-- **Infrastructure investigator**: how the attacker's servers are organised, and links to earlier scans.
+- **Endpoint hunter**: the background requests and their payload shape.
+- **Cookie and tracker inspector**: what is stored in the browser and what is weak.
+- **Lure analyst**: how the page manipulates the visitor.
+- **Infrastructure investigator**: server IPs, hosting provider and location, and links to earlier scans.
 - **Lead analyst**: the headline and how the scam works.
 
 **Models write words; code owns facts.** Indicators and technique labels are computed from the evidence, never from model text. A finding that names a host the evidence does not contain is dropped. Every analyst has a rule-based fallback. It is **passive and defensive**: it analyses what the sealed sandbox already saw, never attacks, scans or tries to identify a person.
+
+## See behind the page
+- **Command-center globe:** when a link is pasted, the globe flies to where the link's server really is (real IP lookup; our fake demo sites get a clearly labelled simulated place), draws the visitors' route from the Vultr server, and orange arcs to wherever data goes. Zoom, click a marker to fly in.
+- **Inspector ("Behind the page"):** Network (every request, endpoint, status and a payload preview with the typed values replaced by their names), Console, Cookies and the page's Scripts, captured inside the sandbox.
+- **Clickable screenshots:** any visitor's thumbnail opens the **full page** in a viewer.
+- **Reputation signals in code:** free-hosting subdomains, domain age, parked or empty pages, loading and bot-check screens. "Nothing bad happened" is never reported as "trusted".
+- **Honest limits:** CAPTCHAs and email/SMS verification steps are reported as limits ("Decoy does not create real accounts"), not hidden.
+- **No false alarms on normal tools:** analytics and error monitoring (for example Sentry) are a privacy note, not theft; phishing-kit channels (Telegram bots, Discord webhooks) are flagged hard.
 
 ## More that makes it a product
 - **Ask Decoy**: ask questions about a scan ("What did the attacker get?"). Answers come only from that scan's evidence and can never call a dangerous link safe.
