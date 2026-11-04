@@ -18,9 +18,25 @@ const WF = (() => {
   };
   const EDGES = [['control', 'link', 'model'], ['link', 'check'], ['check', 'sandbox'], ['sandbox', 'explore', 'model'], ['sandbox', 'net'],
     ['explore', 'destroy'], ['destroy', 'judge'], ['net', 'memory'], ['memory', 'judge'], ['judge', 'analysts', 'model'], ['analysts', 'human', 'model'], ['judge', 'summary', 'model'], ['summary', 'human']];
+  const INFO = {
+    control: 'The control plane runs on a Vultr VM. It plans the scan, starts the sandboxes, validates every suggestion of the AI in code and enforces the budget caps.',
+    link: 'The address you pasted. It is checked in plain code before anything opens: web links only, no private or internal addresses.',
+    check: 'Plain code, no model: look-alike brands, link shorteners, and recognition of official sites such as YouTube or Google.',
+    sandbox: 'A fresh Docker container for every visitor, running on gVisor: no root, no capabilities, read-only disk, no keys inside, destroyed afterwards.',
+    explore: 'A Vultr AI model sees the page and proposes the next click. Code validates it: it can only type fake placeholders and click real elements.',
+    net: 'Every request the page makes is checked. Private, loopback and cloud-metadata addresses are blocked in the browser and again at the server firewall.',
+    memory: 'Threat memory (SQLite): earlier scans, seen-before, and campaigns linked through the same data-collection server.',
+    destroy: 'The sandbox is deleted after the scan. Nothing from it remains.',
+    judge: 'Plain code scores the evidence. The model never sets the verdict.',
+    analysts: 'Investigate mode: specialist analysts (network, script, endpoints, cookies, lure, infrastructure) read the evidence; a lead analyst writes the report.',
+    summary: 'A Vultr AI model writes the plain-words summary. Code rejects it if it contradicts the score.',
+    human: 'Decoy never blocks or reports anything by itself. You decide, and it is recorded.',
+  };
+  const hist = {};
+  let selected = null;
   const $ = id => document.getElementById(id);
   const el = {};
-  let loop = null, started = false;
+  let loop = null, started = false, T0 = performance.now();
 
   function build() {
     const stage = $('wfStage');
@@ -29,9 +45,10 @@ const WF = (() => {
       d.className = 'wn ' + kind; d.style.left = x + '%'; d.style.top = y + 'px'; d.dataset.id = id;
       d.innerHTML = kind === 'core' ? `<div class="ball"></div><b>${t}</b><small>${sub}</small><span class="live"></span>`
         : `<b><i>${ic}</i>${t}</b><small>${sub}</small><span class="live"></span>`;
-      stage.appendChild(d); el[id] = d;
+      stage.appendChild(d); el[id] = d; hist[id] = []; drag(d, id);
     });
     draw(); addEventListener('resize', draw);
+    $('wfReset').onclick = () => { Object.entries(NODES).forEach(([id, n]) => { el[id].style.left = n[0] + '%'; el[id].style.top = n[1] + 'px'; }); draw(); };
   }
   function box(id) {
     const s = $('wfStage').getBoundingClientRect(), r = el[id].getBoundingClientRect();
@@ -48,11 +65,36 @@ const WF = (() => {
     const s = {x: p.x, y: p.y + p.h}, e = {x: q.x, y: q.y - q.h}, m = (s.y + e.y) / 2;
     return `M${s.x},${s.y} C${s.x},${m} ${e.x},${m} ${e.x},${e.y}`;
   }
+  function drag(d, id) {
+    let sx, sy, ox, oy, moved = false;
+    d.addEventListener('pointerdown', e => {
+      d.setPointerCapture(e.pointerId); sx = e.clientX; sy = e.clientY; ox = d.offsetLeft; oy = d.offsetTop; moved = false; d.classList.add('dragging');
+    });
+    d.addEventListener('pointermove', e => {
+      if (!d.hasPointerCapture(e.pointerId)) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; if (!moved) return;
+      const st = $('wfStage'), w = st.clientWidth, h = st.clientHeight;
+      const x = Math.min(w - 40, Math.max(40, ox + dx)), y = Math.min(h - 25, Math.max(25, oy + dy));
+      d.style.left = (x / w * 100) + '%'; d.style.top = y + 'px'; draw();
+    });
+    d.addEventListener('pointerup', e => { d.releasePointerCapture(e.pointerId); d.classList.remove('dragging'); if (!moved) detail(id); });
+  }
+  function detail(id) {
+    selected = id; Object.values(el).forEach(n => n.classList.toggle('sel', n.dataset.id === id));
+    const n = NODES[id], h = hist[id].slice(-8).reverse(), box = $('wfdetail');
+    const kind = {core: 'control plane', code: 'plain code', model: 'Vultr AI model', human: 'human'}[n[5]] || n[5];
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+    box.innerHTML = `<div class="dhead"><b>${esc(n[3])}</b><span class="dk ${n[5]}">${esc(kind)}</span><button type="button" class="dx" id="wfdx" aria-label="Close">×</button></div>`
+      + `<p>${esc(INFO[id] || n[4])}</p>`
+      + (h.length ? `<h6>Latest output</h6><div class="dout">${esc(h[0].text)}</div><h6>History</h6><ul>${h.map(x => `<li><i>${x.at}s</i> ${esc(x.text)}</li>`).join('')}</ul>` : '<p class="small">No activity yet in this scan.</p>');
+    box.classList.remove('hidden'); $('wfdx').onclick = () => { box.classList.add('hidden'); selected = null; Object.values(el).forEach(x => x.classList.remove('sel')); };
+  }
   function draw() {
+    const keep = {}; document.querySelectorAll('#wfSvg .we').forEach(p => keep[p.dataset.e] = p.getAttribute('class'));
     const svg = $('wfSvg'); svg.innerHTML = '';
     EDGES.forEach(([a, b, k]) => {
       const p = document.createElementNS(NS, 'path');
-      p.setAttribute('d', pathD(a, b)); p.setAttribute('class', 'we ' + (k || '')); p.dataset.e = a + '>' + b; svg.appendChild(p);
+      p.setAttribute('d', pathD(a, b)); p.setAttribute('class', keep[a + '>' + b] || ('we ' + (k || ''))); p.dataset.e = a + '>' + b; svg.appendChild(p);
     });
   }
   const edge = (a, b) => document.querySelector(`#wfSvg .we[data-e="${a}>${b}"]`);
@@ -76,7 +118,11 @@ const WF = (() => {
   function state(id, st, text) {
     const n = el[id]; if (!n) return;
     if (st) { n.classList.remove('active', 'done', 'bad'); n.classList.add(st); }
-    if (text != null) { const t = text.replace(/\s+/g, ' ').slice(0, 60); n.querySelector('.live').textContent = t; n.title = text; }
+    if (text != null) {
+      const t = text.replace(/\s+/g, ' ').slice(0, 60); n.querySelector('.live').textContent = t; n.title = '';
+      const last = hist[id][hist[id].length - 1]; if (!last || last.text !== text) hist[id].push({text, at: ((performance.now() - T0) / 1000).toFixed(1)});
+      if (selected === id) detail(id);
+    }
   }
   function settle(except) { Object.values(el).forEach(n => { if (n.classList.contains('active') && n.dataset.id !== except) { n.classList.remove('active'); n.classList.add('done'); } }); }
   function chatter(on) {  // while the explorer works, observations flow to it and commands flow back
@@ -87,6 +133,7 @@ const WF = (() => {
 
   function reset() {
     if (!started) { started = true; build(); }
+    T0 = performance.now(); Object.keys(hist).forEach(k => hist[k] = []);
     Object.values(el).forEach(n => { n.classList.remove('active', 'done', 'bad'); n.querySelector('.live').textContent = ''; n.title = ''; });
     document.querySelectorAll('#wfSvg .we').forEach(e => e.classList.remove('on', 'done', 'bad'));
     chatter(false); draw(); head('Starting…', true);

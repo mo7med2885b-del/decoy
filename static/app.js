@@ -197,7 +197,7 @@ function reset() {
   ['l-created', 'l-running', 'l-destroyed'].forEach(id => $(id).className = '');
   $('seal').className = 'seal'; $('seal').textContent = 'STARTING';
   evCount = 0; $('invcard').classList.add('hidden'); $('desks').innerHTML = ''; $('report').classList.add('hidden'); $('invbar').classList.add('hidden');
-  WF.reset(); buildSwarm([]); $('memory').classList.add('hidden'); $('askbox').classList.add('hidden'); $('askout').classList.add('hidden'); $('askout').textContent = '';
+  WF.reset(); try { GLB.reset(); } catch (e) {} buildSwarm([]); $('memory').classList.add('hidden'); $('askbox').classList.add('hidden'); $('askout').classList.add('hidden'); $('askout').textContent = '';
   Object.keys(count).forEach(k => count[k] = 0);
   stat('sSteps', 0); stat('sBlocked', 0); stat('sLeaks', 0); stat('sCalls', 0);
   queue.length = 0;
@@ -225,6 +225,7 @@ async function start() {
 function handle(ev) {
   if (ev.type !== 'end') evCount++;
   try { WF.event(ev); } catch (e) { console.error(e); }
+  try { GLB.event(ev); } catch (e) { console.error(e); }
   switch (ev.type) {
     case 'investigation':
       $('invcard').classList.remove('hidden'); $('invbar').classList.add('hidden'); $('desks').innerHTML = '';

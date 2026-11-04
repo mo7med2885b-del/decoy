@@ -55,6 +55,12 @@
           <p class="err" id="err"></p>
         </section>
 
+        <section class="card globecard" id="globecard" aria-label="World view">
+          <div class="ghead"><div><span class="lbl">World view</span><div class="gtitle" id="ghud">Paste a link</div></div><span class="gstate" id="gstate"></span></div>
+          <div id="globe"></div>
+          <div class="gleg"><span><i style="background:#4d9bff"></i>Vultr server (visitors start)</span><span><i style="background:#ff7a1a"></i>where the link points</span><span><i style="background:#ff4d2e"></i>receives stolen data</span><span><i style="background:#8fb0ff"></i>other hosts</span></div>
+        </section>
+
         <section class="run hidden" id="run">
           <section class="verdict card" id="verdict">
             <div class="vhead">
@@ -133,7 +139,9 @@
           <button class="wf-cancel" id="cancel" type="button">Cancel</button>
         </div>
         <div class="wf-legend"><span><i class="c"></i>Code, no model</span><span><i class="m"></i>Vultr AI model</span><span><i class="h"></i>Human</span><span><i class="x"></i>Blocked</span></div>
+        <div class="wf-hint"><span>Drag a node to move it · click a node for details</span><button type="button" id="wfReset" class="wf-cancel">Reset layout</button></div>
         <div class="wf-stage" id="wfStage"><svg id="wfSvg" aria-hidden="true"></svg></div>
+        <div class="wf-detail hidden" id="wfdetail"></div>
         <div class="wf-stats">
           <div><b id="sSteps">0</b><small>Pages seen</small></div>
           <div><b id="sBlocked">0</b><small>Blocked</small></div>
@@ -147,6 +155,8 @@
   </main>
   <footer class="foot">A clean result means nothing harmful was seen during this visit. It is not a guarantee.</footer>
 </div>
+<script src="/static/vendor/globe.gl.min.js"></script>
+<script src="/static/globe.js"></script>
 <script src="/static/workflow.js"></script>
 <script src="/static/app.js"></script>
 </body>
