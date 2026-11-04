@@ -101,7 +101,7 @@ def _run(scan_id: str, url: str, budget: guard.Budget, mode: str = "simple"):
         emit({"type": "running"})
         run_scan(scan_id, url, emit, budget, sink=SCANS[scan_id])
         if mode == "investigate" and SCANS[scan_id].get("case"):
-            SCANS[scan_id]["report"] = investigate.run_investigation(SCANS[scan_id]["case"], emit, llm.available())
+            SCANS[scan_id]["report"] = investigate.run_investigation(SCANS[scan_id]["case"], emit, llm.available(), SCANS[scan_id].get("agents"))
     except Exception as e:
         emit({"type": "note", "text": f"Scan failed: {e}"})
     finally:
@@ -239,7 +239,7 @@ async def investigate_scan(scan_id: str, request: Request):
             with LOCK:
                 s["events"].append(ev)
         try:
-            s["report"] = investigate.run_investigation(s["case"], emit, llm.available())
+            s["report"] = investigate.run_investigation(s["case"], emit, llm.available(), s.get("agents"))
         except Exception as e:
             emit({"type": "note", "text": f"Investigation failed: {e}"})
         finally:
@@ -278,6 +278,31 @@ async def read_qr(request: Request):
         raise HTTPException(422, str(e))
     except BadLink:
         raise HTTPException(422, "The QR code does not contain a web link Decoy can open.")
+
+
+@app.get("/api/threats")
+def threat_feed(demo: int = 0):
+    """Flagged sites and where their data goes: share it with your team and your customers."""
+    return store.threats(30, bool(demo))
+
+
+@app.get("/api/blocklist.txt")
+def blocklist_txt(demo: int = 0):
+    return PlainTextResponse("\n".join(store.blocklist(bool(demo))) + "\n")
+
+
+@app.get("/api/blocklist.hosts")
+def blocklist_hosts(demo: int = 0):
+    head = "# Decoy block-list (hosts file format). Review before use.\n"
+    return PlainTextResponse(head + "".join(f"0.0.0.0 {d}\n" for d in store.blocklist(bool(demo))))
+
+
+@app.get("/api/scan/{scan_id}/abuse.txt")
+def abuse_txt(scan_id: str):
+    s = SCANS.get(scan_id) or {}
+    if not s.get("case"):
+        raise HTTPException(404, "No case file in memory for that scan.")
+    return PlainTextResponse(investigate.abuse_draft(s["case"], scan_id), headers={"Content-Disposition": f'attachment; filename="abuse-report-{scan_id}.txt"'})
 
 
 @app.get("/api/history")

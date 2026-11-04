@@ -21,6 +21,7 @@ from concurrent.futures import ThreadPoolExecutor
 from . import geo as geo_mod
 from . import reputation
 from . import investigate, store
+from . import swarm as swarm_mod
 from .verdict import Evidence, cloaking, is_telemetry, template_summary
 
 MAX_ACTIONS = 6
@@ -264,18 +265,22 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
     out_dir.mkdir(parents=True, exist_ok=True)
     signals = domain_signals(url)
     use_model = llm.available()
+    host = urlsplit(url).hostname or ""
     official = any(s["kind"] == "official_domain" for s in signals)
     swarm = [p for p in PERSONAS if p.get("lead")] if (official or env("DECOY_SWARM", "1") != "1") else list(PERSONAS)
     canaries = {p["id"]: make_canary() for p in swarm}
     lead = swarm[0]
     tracker = geo_mod.Tracker(emit)
-    age_pool = ThreadPoolExecutor(max_workers=1)
-    age_f = age_pool.submit(reputation.domain_age_days, urlsplit(url).hostname or "")
-    tracker.seen(urlsplit(url).hostname or "", "lure")
+    tracker.seen(host, "lure")
     emit({"type": "start", "url": url, "origin": geo_mod.origin(), "canary": canaries[lead["id"]], "planner": llm.model_name(),
           "swarm": [{"id": p["id"], "name": p["name"], "device": p["device"]} for p in swarm]})
     if signals:
         emit({"type": "signals", "items": signals})
+
+    # The specialist agents that need only the address start now, in parallel with the visitors.
+    agents = ThreadPoolExecutor(max_workers=9)
+    ctx_a = {"url": url, "host": host, "signals": signals, "official": official}
+    a_futs = {aid: agents.submit(swarm_mod.run_agent, aid, ctx_a, emit) for aid in swarm_mod.GROUP_A}
 
     frames = [0]
 
@@ -325,30 +330,36 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
                  "asked": sorted(evs[p["id"]].asked)} for p in swarm]
     for p in swarm[1:]:
         ev.absorb(evs[p["id"]])
-    c = cloaking([{"name": x["name"], "sig": x["sig"]} for x in visitors])
-    if c:
-        ev.extra.append(c)
-        if c["kind"] == "cloaking":
-            emit({"type": "cloaking", "text": c["text"]})
-    try:
-        sig = reputation.age_signal(age_f.result(timeout=6), urlsplit(url).hostname or "")
-        if sig:
-            ev.extra.append(sig)
-    except Exception:
-        pass
-    age_pool.shutdown(wait=False)
-    v = ev.verdict()
-    for g in v["attacker_got"]:
+
+    # Second wave: six analysts read what the visitors found, again all in parallel.
+    v0 = ev.verdict()
+    for g in v0["attacker_got"]:
         tracker.seen(g["host"], "exfil")
     tracker.wait()
-    mem = store.memory(url, [g["host"] for g in v["attacker_got"]], exclude_id=scan_id)
-    if mem["campaign"]:
-        hosts = sorted({m["shared_server"] for m in mem["campaign"]})
-        ev.extra.append({"kind": "campaign", "weight": 15, "text": f"{len(mem['campaign'])} earlier scan(s) sent stolen data to the same server "
-                         f"({', '.join(hosts)}): this looks like part of one scam campaign."})
-        v = ev.verdict()
+    ai_budget = Budget()
+    ai_budget.max_calls = 5
+    out: dict = {}
+    ctx_b = {"url": url, "host": host, "ev": ev, "visitors": visitors, "exfil_hosts": [g["host"] for g in v0["attacker_got"]], "scan_id": scan_id, "out": out,
+             "budget": ai_budget, "use_model": use_model and env("DECOY_SWARM_AI", "1") == "1",
+             "case": investigate.build_case(url, ev, v0, list(tracker.locs.values()))}
+    b_ids = ("intel",) if official else swarm_mod.GROUP_B
+    b_futs = {aid: agents.submit(swarm_mod.run_agent, aid, ctx_b, emit) for aid in b_ids}
+    agent_results = {}
+    for aid, f in {**a_futs, **b_futs}.items():
+        try:
+            r = f.result(timeout=45)
+        except Exception:
+            continue
+        agent_results[aid] = r
+        ev.extra.extend(r.get("items", []))
+    agents.shutdown(wait=False)
+
+    v = ev.verdict()
+    mem = out.get("memory") or {"seen_before": [], "campaign": []}
     v["memory"] = mem
+    v["exfil_geo"] = [{k: tracker.locs[g["host"]].get(k) for k in ("host", "ip", "city", "code", "org", "simulated")} for g in v["attacker_got"] if g["host"] in tracker.locs]
     v["swarm"] = [{k: x[k] for k in ("id", "name", "device", "level", "shot", "full", "title", "error", "asked")} for x in visitors]
+    v["agents"] = {aid: {"findings": r["findings"][:3], "by": r.get("by", "rules")} for aid, r in agent_results.items()}
     v["summary"], v["summary_by"] = template_summary(v), "rules"
     if use_model:
         try:
@@ -357,12 +368,13 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
                 v["summary"], v["summary_by"] = s, llm.model_name()
         except Exception:
             pass
-    v["model_calls"] = budget.calls
+    v["model_calls"] = budget.calls + ai_budget.calls
     v["seconds"] = round(time.time() - started, 1)
     v["sandbox"] = results[lead["id"]]["info"]
     v["error"] = error
     if sink is not None:
         sink["case"] = investigate.build_case(url, ev, v, list(tracker.locs.values()))
+        sink["agents"] = agent_results
     try:
         store.save(scan_id, url, v)
     except Exception as e:

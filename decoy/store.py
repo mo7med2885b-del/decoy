@@ -25,6 +25,10 @@ def _conn(path=None):
     c.execute("""CREATE TABLE IF NOT EXISTS scans (
         id TEXT PRIMARY KEY, at REAL, url TEXT, host TEXT, site TEXT, level TEXT, score INTEGER, summary TEXT,
         exfil TEXT, cloaking INTEGER, decision TEXT, note TEXT, evidence TEXT)""")
+    try:
+        c.execute("ALTER TABLE scans ADD COLUMN exfil_geo TEXT")
+    except sqlite3.OperationalError:
+        pass
     c.execute("CREATE INDEX IF NOT EXISTS scans_site ON scans(site)")
     return c
 
@@ -34,10 +38,10 @@ def save(scan_id: str, url: str, v: dict, path=None):
     exfil = sorted({g["host"] for g in v.get("attacker_got", [])})
     cloaked = int(any(e.get("kind") == "cloaking" for e in v.get("evidence", [])))
     with _LOCK, _conn(path) as c:
-        c.execute("INSERT OR REPLACE INTO scans (id, at, url, host, site, level, score, summary, exfil, cloaking, decision, note, evidence) "
-                  "VALUES (?,?,?,?,?,?,?,?,?,?,NULL,NULL,?)",
+        c.execute("INSERT OR REPLACE INTO scans (id, at, url, host, site, level, score, summary, exfil, cloaking, decision, note, evidence, exfil_geo) "
+                  "VALUES (?,?,?,?,?,?,?,?,?,?,NULL,NULL,?,?)",
                   (scan_id, time.time(), url[:500], host, _site(host), v["level"], v["score"], v.get("summary", "")[:800],
-                   json.dumps(exfil), cloaked, json.dumps([e["text"] for e in v.get("evidence", [])][:12])))
+                   json.dumps(exfil), cloaked, json.dumps([e["text"] for e in v.get("evidence", [])][:12]), json.dumps(v.get("exfil_geo", []))))
 
 
 def decide(scan_id: str, decision: str, note: str, path=None):
@@ -69,3 +73,28 @@ def get(scan_id: str, path=None) -> dict | None:
     with _LOCK, _conn(path) as c:
         r = c.execute("SELECT * FROM scans WHERE id=?", (scan_id,)).fetchone()
     return dict(r) if r else None
+
+
+def threats(limit: int = 30, include_demo: bool = False, path=None) -> list[dict]:
+    """Dangerous and suspicious scans with where the data went (country, hosting company): the threat feed."""
+    with _LOCK, _conn(path) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT id, at, url, host, site, level, score, exfil, exfil_geo, cloaking FROM scans WHERE level IN ('DANGEROUS','SUSPICIOUS') ORDER BY at DESC LIMIT ?", (limit * 3,))]
+    out = []
+    for r in rows:
+        if not include_demo and r["host"].endswith(".test"):
+            continue
+        r["exfil_geo"] = json.loads(r.get("exfil_geo") or "[]")
+        out.append(r)
+    return out[:limit]
+
+
+def blocklist(include_demo: bool = False, path=None) -> list[str]:
+    """Domains to block: the site of every DANGEROUS scan and every server that received stolen data."""
+    domains = set()
+    for r in threats(500, include_demo, path):
+        if r["level"] == "DANGEROUS":
+            domains.add(r["host"])
+            for g in r["exfil_geo"]:
+                domains.add(g["host"])
+    return sorted(d for d in domains if d)
