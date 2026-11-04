@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Decoy</title>
-<script>try{var t=localStorage.getItem('decoy-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<script>try{var t=localStorage.getItem('decoy-theme');document.documentElement.dataset.theme=t||'light'}catch(e){}</script>
 <link rel="icon" type="image/png" href="/static/assets/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -79,6 +79,7 @@
               <div class="sheet"><h3>What the attacker would have received</h3><div id="loot"></div>
                 <p class="small">Only the fake data listed below was ever typed. Nothing real left your hands.</p></div>
             </div>
+            <div class="protect hidden" id="protect"></div>
             <div class="invbar hidden" id="invbar"><button class="btn" id="invbtn" type="button">Investigate like a security analyst</button><span class="small">A team of specialist agents reads the evidence and writes a takedown-ready report. Passive and defensive only.</span></div>
             <div class="askbox hidden" id="askbox">
               <h3>Ask Decoy about this scan</h3>
@@ -142,6 +143,12 @@
             <section class="card"><h3>Fake data the agent may type</h3><dl class="canary" id="canary"></dl></section>
             <section class="card"><h3>Blocked by the sandbox</h3><ul class="blocked" id="blocked"><li class="small">Nothing yet.</li></ul></section>
           </div>
+        </section>
+
+        <section class="card hidden" id="threatcard">
+          <h3>Threat feed <small class="small">flagged sites and where the stolen data goes · share it with your team and customers</small></h3>
+          <div class="tw"><table class="dt"><thead><tr><th>Site</th><th>Verdict</th><th>Data goes to</th><th>Seen</th></tr></thead><tbody id="thbody"></tbody></table></div>
+          <div class="thbtns"><a class="btn" href="/api/blocklist.txt?demo=1" target="_blank" rel="noopener">Block-list (.txt)</a><a class="btn" href="/api/blocklist.hosts?demo=1" target="_blank" rel="noopener">Hosts file</a><a class="btn" href="/api/threats?demo=1" target="_blank" rel="noopener">JSON feed</a></div>
         </section>
 
         <section class="card hidden" id="histcard"><h3>Recent scans · threat memory</h3><ul class="hist" id="hist"></ul></section>

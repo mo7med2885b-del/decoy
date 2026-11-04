@@ -99,6 +99,30 @@ async function ask(q) {
   } catch (e) { $('askout').textContent = 'The server did not answer.'; }
 }
 function ago(t) { const s = Math.max(1, Date.now() / 1000 - t); return s < 90 ? 'just now' : s < 5400 ? Math.round(s / 60) + ' min ago' : s < 129600 ? Math.round(s / 3600) + ' h ago' : Math.round(s / 86400) + ' d ago'; }
+const flag = c => (c && c.length === 2) ? String.fromCodePoint(...[...c.toUpperCase()].map(x => 127397 + x.charCodeAt(0))) : '';
+async function refreshThreats() {
+  try {
+    const rows = await (await fetch('/api/threats?demo=1')).json();
+    $('threatcard').classList.toggle('hidden', !rows.length);
+    $('thbody').innerHTML = rows.slice(0, 10).map(r => {
+      const geo = r.exfil_geo || [];
+      const dest = geo.length ? geo.map(g => `${flag(g.code)} <b>${esc(g.host)}</b><span class="pth">${esc([g.city, g.code].filter(Boolean).join(', '))}${g.simulated ? ' (simulated)' : ''}${g.org ? ' · ' + esc(g.org) : ''}</span>`).join('<br>') : '<span class="small">no data sent away</span>';
+      return `<tr><td><b>${esc(r.host)}</b>${r.cloaking ? '<span class="fl bad">cloaked</span>' : ''}</td><td><i class="${levelCls(r.level)} lvl">${esc(LEVEL_TXT[r.level] || r.level)}</i></td><td>${dest}</td><td class="small">${ago(r.at)}</td></tr>`;
+    }).join('');
+  } catch (e) {}
+}
+function showProtect(v) {
+  const box = $('protect'); const bad = v.level === 'DANGEROUS' || v.level === 'SUSPICIOUS';
+  if (!bad) { box.classList.add('hidden'); return; }
+  const host = (new URL($('addr').textContent.startsWith('http') ? $('addr').textContent : 'http://' + ($('url').value.replace(/^https?:\/\//, '') || 'x'))).hostname;
+  const geo = v.exfil_geo || []; const doms = [...new Set([host, ...geo.map(g => g.host)])];
+  box.classList.remove('hidden');
+  box.innerHTML = `<h3>Protect your people</h3><p>${geo.length ? `The stolen data goes to <b>${geo.map(g => esc(flag(g.code) + ' ' + g.host + ' (' + [g.city, g.code].filter(Boolean).join(', ') + (g.simulated ? ', simulated' : '') + ')')).join(', ')}</b>.` : 'No data was sent away, but the site is still risky.'} Block these addresses for your team and customers:</p>`
+    + `<div class="vchips">${doms.map(d => `<span class="vc alarm">${esc(d)}</span>`).join('')}</div><div class="row" style="margin-top:10px">`
+    + `<button class="btn" id="copybl" type="button">Copy block-list</button><a class="btn" href="/api/blocklist.hosts?demo=1" target="_blank" rel="noopener">Hosts file</a>`
+    + `<a class="btn" href="/api/scan/${scanId}/abuse.txt">Abuse report draft</a></div><p class="small">Decoy never blocks or reports by itself: you review, then you send.</p>`;
+  $('copybl').onclick = () => { try { navigator.clipboard.writeText(doms.join('\n')); $('copybl').textContent = 'Copied ✓'; } catch (e) {} };
+}
 async function refreshHistory() {
   try {
     const rows = await (await fetch('/api/history')).json();
@@ -196,7 +220,7 @@ async function refreshHealth() {
 }
 
 async function init() {
-  refreshHealth(); refreshHistory(); initAsk(); initQr();
+  refreshHealth(); refreshHistory(); refreshThreats(); initAsk(); initQr();
   try {
     for (const ex of await (await fetch('/api/examples')).json()) {
       const b = document.createElement('button');
@@ -406,8 +430,8 @@ function showVerdict(v) {
   $('loot').innerHTML = (v.attacker_got || []).map(g => `<div class="lootbox"><b>${esc(g.host)}</b> received your fake ${esc(g.data.map(d => (LABELS[d] || d).toLowerCase()).join(', '))}</div>`).join('')
     || '<p class="small">Nothing was sent to another server.</p>';
   $('vgrid').classList.remove('hidden'); $('decide').classList.remove('hidden');
-  showMemory(v.memory); (v.swarm || []).forEach(s => swUpdate(s.id, {level: s.level, title: s.title, asked: s.asked, shot: s.shot, full: s.full}));
-  $('askbox').classList.remove('hidden'); refreshHistory(); if (mode !== 'investigate') $('invbar').classList.remove('hidden');
+  showProtect(v); showMemory(v.memory); (v.swarm || []).forEach(s => swUpdate(s.id, {level: s.level, title: s.title, asked: s.asked, shot: s.shot, full: s.full}));
+  $('askbox').classList.remove('hidden'); refreshHistory(); refreshThreats(); if (mode !== 'investigate') $('invbar').classList.remove('hidden');
   trace(`Verdict ${v.level}, score ${v.score}/100, from ${v.evidence.length} pieces of evidence.`, 'evidence judge · code', risk === 'clean' ? 'good' : 'bad');
   stepTo(3);
 }

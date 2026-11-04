@@ -408,3 +408,10 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .we.argue { stroke: var(--blue-glow); stroke-width: 2.6; stroke-dasharray: 5 6; animation: wfdash .5s linear infinite; filter: drop-shadow(0 0 5px rgba(91, 155, 255, .8)); } .we.argue.hot { stroke: var(--orange); filter: drop-shadow(0 0 5px rgba(255, 122, 26, .8)); }
 .wf-view { min-height: 1240px; } .wf-stage { height: 1240px; } @media (max-width: 700px) { .wf-view { min-height: 1240px; } .wf-stage { height: 1240px; } }
 :root[data-theme="light"] .dmsg { background: rgba(236, 242, 255, .85); } :root[data-theme="light"] .dmsg.chal b { color: #b24a00; } :root[data-theme="light"] .vc { background: rgba(11, 21, 48, .07); } :root[data-theme="light"] .vc.alarm { color: #b24a00; } :root[data-theme="light"] .vc.clear { color: #174ec4; }
+
+/* ---- threat feed and protect box ---- */
+.protect { margin-top: 14px; padding: 12px 14px; border-radius: 16px; background: var(--orange-soft); box-shadow: inset 3px 0 var(--orange); }
+.protect h3 { margin: 0 0 6px; color: #ffb277; } .protect p { margin: 4px 0; font-size: 14px; } .protect .btn { text-decoration: none; color: inherit; font-size: 13px; padding: 9px 14px; }
+.thbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; } .thbtns .btn { text-decoration: none; color: inherit; font-size: 13px; padding: 9px 14px; }
+.lvl { font-style: normal; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 99px; background: rgba(255, 255, 255, .08); } .lvl.bad { background: var(--orange-soft); color: #ffb277; } .lvl.warn { background: rgba(255, 162, 77, .18); color: #ffc58f; }
+:root[data-theme="light"] .protect h3 { color: #b24a00; } :root[data-theme="light"] .lvl.bad { color: #b24a00; } :root[data-theme="light"] .protect .btn, :root[data-theme="light"] .thbtns .btn { background: #fff; }
