@@ -12,14 +12,14 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlsplit
 
-from . import llm
+from . import llm, reputation
 from .guard import Budget
 
 HOST_RE = re.compile(r"\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b", re.I)
 
 
 # ---------------------------------------------------------------- the case file (facts only, from the sandbox) ----
-def build_case(url: str, ev, v: dict) -> dict:
+def build_case(url: str, ev, v: dict, geo: list | None = None) -> dict:
     hosts: dict[str, int] = {}
     for n in ev.net_log:
         hosts[n["host"]] = hosts.get(n["host"], 0) + 1
@@ -29,6 +29,8 @@ def build_case(url: str, ev, v: dict) -> dict:
             "blocked": ev.blocked[:10], "redirects": ev.redirects[:10], "downloads": ev.downloads[:5],
             "scripts": ev.scripts[:6], "script_srcs": ev.script_srcs[:10], "hidden_orders": ev.hidden_orders[:2],
             "evidence_kinds": [e["kind"] for e in v.get("evidence", [])], "evidence": [e["text"] for e in v.get("evidence", [])][:10],
+            "geo": [{k: g.get(k) for k in ("host", "ip", "city", "code", "org", "role", "simulated")} for g in (geo or [])][:8],
+            "reputation": {"free_host": reputation.free_host(urlsplit(url).hostname or ""), "parked": ev.parked, "interstitial": bool(reputation.INTERSTITIAL.search(ev.final_title or ""))},
             "endpoints": ev.endpoints[:25], "cookies": ev.cookies[:20], "console": ev.console[:25], "gates": sorted(ev.gates),
             "lure": {"urgency": ev.urgency, "asked": sorted(ev.asked), "title": ev.last_title, "official": bool(ev.official)},
             "swarm": v.get("swarm", []), "memory_campaign": [m.get("host") for m in (v.get("memory") or {}).get("campaign", [])]}
@@ -64,6 +66,9 @@ def iocs(case: dict) -> list[dict]:
         h = urlsplit(s).hostname
         if h:
             add("domain", h, "script host", "serves JavaScript to the page")
+    for g in case.get("geo") or []:
+        if g.get("ip") and g["ip"] != "simulated" and not g.get("simulated"):
+            add("ip", g["ip"], "server address", f"{g['host']} · {', '.join(x for x in (g.get('city'), g.get('code')) if x)} · {g.get('org') or 'unknown host'}")
     return out
 
 
@@ -142,6 +147,14 @@ def rules_findings(role: str, case: dict) -> list[str]:
             out.append("The page hides text that tries to give orders to AI scanners; it was treated as data.")
         return out or ["No inline script behaviour of interest was found."]
     out = []
+    rep = case.get("reputation") or {}
+    if rep.get("free_host"):
+        out.append(f"The site lives on a free hosting service ({rep['free_host']}): anyone can publish there in minutes, so the address says little about who runs it.")
+    for g in (case.get("geo") or []):
+        if g.get("role") in ("lure", "exfil") and not g.get("simulated") and g.get("ip"):
+            out.append(f"{g['host']} is served from {g['ip']} in {', '.join(x for x in (g.get('city'), g.get('code')) if x)} (run by {g.get('org') or 'an unknown provider'}).")
+    if rep.get("parked") or rep.get("interstitial"):
+        out.append("The page is parked or hidden behind a loading screen, which is typical of sites kept ready for later use.")
     if "lookalike_domain" in case["evidence_kinds"]:
         out.append("The address imitates a well-known brand with swapped characters.")
     if case["memory_campaign"]:

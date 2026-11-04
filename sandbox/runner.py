@@ -8,6 +8,7 @@ loopback or cloud-metadata addresses.
 Commands: open, state, fill_and_submit, click, close.
 """
 import base64
+import re
 import hashlib
 import ipaddress
 import json
@@ -226,6 +227,15 @@ class Runner:
     # ---- observation -------------------------------------------------------
     def state(self, note=None):
         self.page.wait_for_timeout(400)  # lets the browser deliver events (time.sleep would not)
+        for _ in range(6):  # bot-check and loading screens often finish by themselves: give the real page a few seconds
+            try:
+                title = self.page.title() or ""
+                n = self.page.evaluate("((document.body && document.body.innerText) || '').length")
+                if n >= 40 and not re.match(r"(?i)^(loading|just a moment|checking|redirecting|please wait|one moment)", title):
+                    break
+            except Exception:
+                pass
+            self.page.wait_for_timeout(1000)
         info = {}
         for _ in range(4):  # the page may still be navigating (scripts redirect after a submit)
             try:

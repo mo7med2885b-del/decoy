@@ -3,6 +3,7 @@ import ipaddress
 import re
 from urllib.parse import urlsplit
 
+from . import reputation
 from .config import DEMO_SUFFIX
 
 # Brands that phishing pages copy most. "northbank" is our fictional demo brand.
@@ -75,6 +76,9 @@ def domain_signals(url: str) -> list[dict]:
                         "text": f"The address '{host}' imitates {brand.title()}"
                                 + (" by swapping letters for numbers" if swapped else "") + f", but it is not {official}."})
             break
+    fh = reputation.free_host(host)
+    if fh:
+        out.append({"kind": "free_hosting", "weight": 15, "text": f"The address is a subdomain on a free hosting service ({fh}). Anyone can publish a page there in minutes, and scams use these a lot; real brands rarely do."})
     if urlsplit(url).scheme == "http":
         out.append({"kind": "no_https", "weight": 5, "text": "The link is not encrypted (http, not https)."})
     if host in SHORTENERS:

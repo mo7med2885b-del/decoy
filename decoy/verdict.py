@@ -2,6 +2,8 @@
 import re
 from urllib.parse import urlsplit
 
+from . import reputation
+
 DANGEROUS_EXT = (".exe", ".scr", ".msi", ".bat", ".cmd", ".js", ".vbs", ".ps1", ".jar", ".apk", ".dmg", ".iso",
                  ".zip", ".rar", ".7z", ".lnk", ".hta", ".docm", ".xlsm")
 URGENCY = re.compile(r"\b(locked|suspended|within 24 hours|verify (your|my)|unusual activity|account will be closed|"
@@ -41,6 +43,10 @@ class Evidence:
         self.scripts: list[str] = []
         self.console: list[dict] = []
         self.gates: set[str] = set()
+        self.parked = False
+        self.max_text = 0
+        self.final_title = ""
+        self.interactive = False
         self.cookies: list[dict] = []
         self.endpoints: list[dict] = []   # non-page requests (xhr, fetch, beacons, forms) with status and redacted payload
         self.script_srcs: list[str] = []
@@ -58,6 +64,13 @@ class Evidence:
             self.first_sig = ((state.get("title") or "").strip().lower(), bool(page.get("has_password")))
         if page.get("gate"):
             self.gates.add(page["gate"])
+        vt = (page.get("visible_text") or "").strip()
+        self.max_text = max(self.max_text, len(vt))
+        self.final_title = (state.get("title") or self.final_title or "").strip()
+        if reputation.PARKED.search(vt[:1500]) or reputation.PARKED.search(self.final_title):
+            self.parked = True
+        if page.get("fields") or page.get("buttons") or len(page.get("links") or []) > 1:
+            self.interactive = True
         for c in state.get("console") or []:
             if len(self.console) < 80:
                 self.console.append(c)
@@ -124,6 +137,9 @@ class Evidence:
         self.console += [c for c in other.console if len(self.console) < 80 and c not in self.console]
         self.cookies = self.cookies or other.cookies
         self.gates |= other.gates
+        self.parked = self.parked or other.parked
+        self.max_text = max(self.max_text, other.max_text)
+        self.interactive = self.interactive or other.interactive
         if len(other.redirects) > len(self.redirects):
             self.redirects = other.redirects
 
@@ -174,6 +190,20 @@ class Evidence:
             short = any(h in SHORT_HOSTS or len(h) <= 9 for h in hops[:1]) and len(hops) > 1
             items.append({"kind": "redirect", "weight": 15 if short else 8,
                           "text": ("A link that hides its destination: " if short else "The link moved you through other sites: ") + " → ".join(hops[:5]) + "."})
+        limits = []
+        if reputation.INTERSTITIAL.search(self.final_title or ""):
+            limits.append(f"The page stayed on a loading or bot-check screen ('{self.final_title[:50]}'), so Decoy did not see the real content.")
+            items.append({"kind": "interstitial", "weight": 10, "text": "The page only showed a loading or bot-check screen, so what it really is stayed hidden. Real pages usually load for a simple visitor."})
+        elif self.official:
+            pass  # official sites are recognised by address; a thin page there is not a warning
+        elif self.parked:
+            items.append({"kind": "parked_page", "weight": 15, "text": "The page looks parked or like an empty placeholder. Scam sites often sit empty until they are used, so it tells us little."})
+        elif self.max_text < 60 and not self.interactive and not self.leaks and not self.downloads:
+            items.append({"kind": "thin_page", "weight": 10, "text": "The page is almost empty: there is nothing to read or click. A site with no content cannot be judged as trustworthy."})
+        if "captcha" in self.gates:
+            limits.append("A bot check (CAPTCHA) appeared. Decoy does not solve those, so anything behind it was not seen.")
+        if "verification" in self.gates:
+            limits.append("The page asked for an email or SMS verification code. Decoy never creates real accounts or reads real inboxes, so it stopped there; what the page does after sign-up was not seen.")
         score = min(100, sum(i["weight"] for i in items))
         level = "DANGEROUS" if score >= 60 else "SUSPICIOUS" if score >= 25 else \
             "LOOKS SAFE" if self.official and score < 10 else "NO THREAT FOUND"
@@ -190,11 +220,6 @@ class Evidence:
             checks.append("It did not try to reach private or cloud-secret addresses.")
         if not self.hidden_orders:
             checks.append("No hidden instructions for AI scanners.")
-        limits = []
-        if "captcha" in self.gates:
-            limits.append("A bot check (CAPTCHA) appeared. Decoy does not solve those, so anything behind it was not seen.")
-        if "verification" in self.gates:
-            limits.append("The page asked for an email or SMS verification code. Decoy never creates real accounts or reads real inboxes, so it stopped there; what the page does after sign-up was not seen.")
         return {"level": level, "score": score, "evidence": items, "attacker_got": got, "checks": checks, "limits": limits,
                 "page_title": self.last_title, "page_host": self.last_host, "official": self.official,
                 "blocked": self.blocked, "downloads": self.downloads}
@@ -208,9 +233,9 @@ def template_summary(v: dict) -> str:
         return (f"This is a real {brand} link. We opened it in a sealed browser and it is a normal page: {page}. "
                 "It did not ask for your password, push a download or send data to other sites. Nothing to worry about." + extra)
     if v["level"] == "NO THREAT FOUND":
-        return (f"We opened it in a sealed browser: it is {page} on {v.get('page_host') or 'this site'}. It did not ask for "
-                "a password or card, push a download or send data to other sites, so it looks fine. As always, do not type "
-                "passwords on a page you reached from a message." + extra)
+        return (f"Nothing harmful happened during this visit: it is {page} on {v.get('page_host') or 'this site'}. It did not ask for "
+                "a password or card, push a download or send data to other sites. That is not a trust rating: Decoy has no history for "
+                "this site, so do not treat it as trusted, and never type passwords on a page you reached from a message." + extra)
     lead = "Do not open this link." if v["level"] == "DANGEROUS" else "Be careful with this link."
     return lead + " " + v["evidence"][0]["text"] + " The reasons are listed below."
 

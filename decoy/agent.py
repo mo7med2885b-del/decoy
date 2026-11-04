@@ -19,6 +19,7 @@ from .urlcheck import domain_signals
 from concurrent.futures import ThreadPoolExecutor
 
 from . import geo as geo_mod
+from . import reputation
 from . import investigate, store
 from .verdict import Evidence, cloaking, template_summary
 
@@ -268,6 +269,8 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
     canaries = {p["id"]: make_canary() for p in swarm}
     lead = swarm[0]
     tracker = geo_mod.Tracker(emit)
+    age_pool = ThreadPoolExecutor(max_workers=1)
+    age_f = age_pool.submit(reputation.domain_age_days, urlsplit(url).hostname or "")
     tracker.seen(urlsplit(url).hostname or "", "lure")
     emit({"type": "start", "url": url, "origin": geo_mod.origin(), "canary": canaries[lead["id"]], "planner": llm.model_name(),
           "swarm": [{"id": p["id"], "name": p["name"], "device": p["device"]} for p in swarm]})
@@ -327,6 +330,13 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
         ev.extra.append(c)
         if c["kind"] == "cloaking":
             emit({"type": "cloaking", "text": c["text"]})
+    try:
+        sig = reputation.age_signal(age_f.result(timeout=6), urlsplit(url).hostname or "")
+        if sig:
+            ev.extra.append(sig)
+    except Exception:
+        pass
+    age_pool.shutdown(wait=False)
     v = ev.verdict()
     for g in v["attacker_got"]:
         tracker.seen(g["host"], "exfil")
@@ -352,7 +362,7 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
     v["sandbox"] = results[lead["id"]]["info"]
     v["error"] = error
     if sink is not None:
-        sink["case"] = investigate.build_case(url, ev, v)
+        sink["case"] = investigate.build_case(url, ev, v, list(tracker.locs.values()))
     try:
         store.save(scan_id, url, v)
     except Exception as e:

@@ -237,3 +237,25 @@ def test_new_analysts_have_rule_based_findings():
     assert any("carried the fake data" in f for f in inv.rules_findings("endpoint", case))
     assert any("lack the Secure" in f for f in inv.rules_findings("cookies", case))
     assert any("urgency" in f for f in inv.rules_findings("lure", case))
+
+
+def test_free_hosting_and_parked_or_loading_pages_are_never_called_fine():
+    from decoy.urlcheck import domain_signals
+    from decoy import reputation
+    sig = domain_signals("https://foodnetworksprime-tl.ct.ws/en")
+    assert any(s["kind"] == "free_hosting" and s["weight"] >= 15 for s in sig)
+    assert reputation.free_host("shop.pages.dev") == "pages.dev" and reputation.free_host("paypal.com") is None
+    ev = Evidence("https://foodnetworksprime-tl.ct.ws/en", sig)
+    ev.add_state({"url": "https://foodnetworksprime-tl.ct.ws/en", "title": "Loading https://foodnetworksprime-tl.ct.ws/en", "page": {"visible_text": ""}, "network": []}, 0)
+    v = ev.verdict()
+    assert v["level"] == "SUSPICIOUS" and any("loading or bot-check" in x for x in v["limits"])
+    ev2 = Evidence("https://example-new.com/", [])
+    ev2.add_state({"url": "https://example-new.com/", "title": "Domain for sale", "page": {"visible_text": "This domain is for sale. Buy this domain today."}, "network": []}, 0)
+    ev2.extra.append(reputation.age_signal(5, "example-new.com"))
+    assert ev2.verdict()["level"] == "SUSPICIOUS" and reputation.age_signal(400, "old.com") is None
+
+
+def test_clean_wording_is_not_a_trust_rating():
+    from decoy.verdict import template_summary
+    s = template_summary({"level": "NO THREAT FOUND", "page_title": "Hello", "page_host": "x.org", "limits": []})
+    assert "not a trust rating" in s and "looks fine" not in s

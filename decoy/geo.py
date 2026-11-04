@@ -62,7 +62,7 @@ class Tracker:
     """Locates hosts in the background and emits a `geo` event for each (at most 8 per scan)."""
     def __init__(self, emit):
         self.emit, self.roles, self.lock = emit, {}, threading.Lock()
-        self.pool, self.futs = ThreadPoolExecutor(max_workers=2), []
+        self.pool, self.futs, self.locs = ThreadPoolExecutor(max_workers=2), [], {}
 
     def seen(self, host: str, role: str):
         rank = {"lure": 1, "redirect": 2, "contacted": 3, "exfil": 4}
@@ -76,6 +76,7 @@ class Tracker:
     def _work(self, host, role):
         loc = locate(host)
         if loc:
+            self.locs[host] = {**loc, "role": role}
             self.emit({"type": "geo", "role": role, **loc})
 
     def wait(self, timeout=8):
