@@ -6,26 +6,26 @@ const WF = (() => {
   const NODES = {
     control: [50, 62, '', 'Decoy control plane', 'Vultr VM · plans and verifies', 'core'],
     link: [50, 150, '✉', 'Suspicious link', 'email · WhatsApp · text', 'code'],
-    check: [17, 245, '⌁', 'Reputation', 'code · domain age', 'code'],
-    geo: [50, 245, '◎', 'Server location', 'code · IP, city, host', 'code'],
-    tls: [83, 245, '🔒', 'TLS certificate', 'code · issuer, age', 'code'],
+    check: [17, 245, '🧠', 'Reputation', 'code · domain age', 'code'],
+    geo: [50, 245, '🧠', 'Server location', 'code · IP, city, host', 'code'],
+    tls: [83, 245, '🧠', 'TLS certificate', 'code · issuer, age', 'code'],
     sandbox: [50, 345, '▣', 'Sealed browsers', 'Docker + gVisor each', 'code'],
-    v_careless: [17, 445, '◉', 'Careless employee', 'laptop · Vultr AI explorer', 'model'],
-    v_phone: [50, 445, '▯', 'Phone user', 'iPhone · rule-based', 'code'],
-    v_bot: [83, 445, '⚙', 'Security bot', 'link scanner · rule-based', 'code'],
+    v_careless: [17, 445, '🧠', 'Careless employee', 'laptop · Vultr AI explorer', 'model'],
+    v_phone: [50, 445, '🧠', 'Phone user', 'iPhone · rule-based', 'code'],
+    v_bot: [83, 445, '🧠', 'Security bot', 'link scanner · rule-based', 'code'],
     net: [17, 545, '⛨', 'Egress filter', 'blocks private addresses', 'code'],
     destroy: [50, 545, '✕', 'Sandboxes gone', 'nothing remains', 'code'],
-    script: [17, 650, '‹/›', 'Script analyst', 'DeepSeek · reads the code', 'model'],
-    endpoints: [50, 650, '⇄', 'Endpoint hunter', 'Qwen · requests and countries', 'model'],
-    privacy: [83, 650, '◔', 'Privacy', 'MiMo · storage, console', 'model'],
-    lure: [17, 750, '◎', 'Lure analyst', 'MiniMax · manipulation', 'model'],
-    intel: [50, 750, '◈', 'Threat intel', 'memory · campaigns', 'code'],
-    cloak: [83, 750, '⚖', 'Cloak detector', 'compares visitors', 'code'],
-    debate: [50, 855, '💬', 'Agent debate', 'share · challenge · vote', 'model'],
-    judge: [50, 960, '⚖', 'Evidence judge', 'code · score by rules', 'code'],
-    analysts: [17, 1065, '🔎', 'Analyst team', 'Investigate mode', 'model'],
-    summary: [50, 1065, '✎', 'Summary', 'GLM · plain words', 'model'],
-    human: [83, 1065, '✓', 'Your decision', 'block · safe · dismiss', 'human'],
+    script: [17, 650, '🧠', 'Script analyst', 'DeepSeek · reads the code', 'model'],
+    endpoints: [50, 650, '🧠', 'Endpoint hunter', 'Qwen · requests and countries', 'model'],
+    privacy: [83, 650, '🧠', 'Privacy', 'MiMo · storage, console', 'model'],
+    lure: [17, 750, '🧠', 'Lure analyst', 'MiniMax · manipulation', 'model'],
+    intel: [50, 750, '🧠', 'Threat intel', 'memory · campaigns', 'code'],
+    cloak: [83, 750, '🧠', 'Cloak detector', 'compares visitors', 'code'],
+    debate: [50, 1030, '🧠', 'Agent chat room', 'share · challenge · vote', 'chat'],
+    judge: [50, 1290, '⚖', 'Evidence judge', 'code · score by rules', 'code'],
+    analysts: [17, 1400, '🧠', 'Analyst team', 'Investigate mode', 'model'],
+    summary: [50, 1400, '🧠', 'Summary', 'GLM · plain words', 'model'],
+    human: [83, 1400, '✓', 'Your decision', 'block · safe · dismiss', 'human'],
   };
   const EDGES = [['control', 'link', 'model'], ['link', 'check'], ['link', 'geo'], ['link', 'tls'], ['check', 'sandbox'], ['sandbox', 'v_careless', 'model'], ['sandbox', 'v_phone'], ['sandbox', 'v_bot'],
     ['v_careless', 'net'], ['v_careless', 'destroy'], ['v_phone', 'destroy'], ['v_bot', 'destroy'],
@@ -57,6 +57,13 @@ const WF = (() => {
     summary: 'A Vultr AI model writes the plain-words summary. Code rejects it if it contradicts the score.',
     human: 'Decoy never blocks or reports anything by itself. You decide, and it is recorded.',
   };
+  const S = d => `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const ICONS = {  // custom line icons (no emoji): one brain for every agent
+    '🧠': S('<path d="M9.5 4a3 3 0 0 0-3 3 3 3 0 0 0-2 2.8 3 3 0 0 0 1 2.2 3 3 0 0 0 1.2 4.3A3 3 0 0 0 9.5 20 2.5 2.5 0 0 0 12 17.5v-12A2.5 2.5 0 0 0 9.5 4z"/><path d="M14.5 4a3 3 0 0 1 3 3 3 3 0 0 1 2 2.8 3 3 0 0 1-1 2.2 3 3 0 0 1-1.2 4.3A3 3 0 0 1 14.5 20a2.5 2.5 0 0 1-2.5-2.5v-12A2.5 2.5 0 0 1 14.5 4z"/><path d="M8.5 9.5h1.5M14 9.5h1.5M8.5 14h1.5M14 14h1.5"/>'),
+    '✉': S('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>'),
+    '✎': S('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>'),
+  };
+  const iconHtml = ic => ICONS[ic] || ic;
   const START_VISIBLE = ['control', 'link'];
   const hist = {};
   let selected = null, zoom = 1, loop = null, started = false, T0 = performance.now(), destroyed = 0, expected = 1;
@@ -68,8 +75,9 @@ const WF = (() => {
     Object.entries(NODES).forEach(([id, [x, y, ic, t, sub, kind]]) => {
       const d = document.createElement('div');
       d.className = 'wn ' + kind + (START_VISIBLE.includes(id) ? '' : ' ghost'); d.style.left = x + '%'; d.style.top = y + 'px'; d.dataset.id = id;
+      if (kind === 'chat') { d.innerHTML = `<div class="cr-head"><span class="cr-ic">${iconHtml('🧠')}</span><b>${t}</b><em class="cr-live">idle</em></div><div class="cr-list" id="crList"><p class="cr-empty">The agents meet here after the visitors leave: they post findings, question each other, answer and vote.</p></div><span class="live"></span>`; d.querySelector('.cr-list').addEventListener('pointerdown', e => e.stopPropagation()); stage.appendChild(d); el[id] = d; hist[id] = []; drag(d, id); return; }
       d.innerHTML = kind === 'core' ? `<div class="ball"></div><b>${t}</b><small>${sub}</small><span class="live"></span>`
-        : `<b><i>${ic}</i>${t}</b><small>${sub}</small><span class="live"></span>`;
+        : `<b><i>${iconHtml(ic)}</i>${t}</b><small>${sub}</small><span class="live"></span>`;
       stage.appendChild(d); el[id] = d; hist[id] = []; drag(d, id);
     });
     draw(); addEventListener('resize', draw);
@@ -108,13 +116,16 @@ const WF = (() => {
     });
     d.addEventListener('pointerup', e => { d.releasePointerCapture(e.pointerId); d.classList.remove('dragging'); if (!moved) detail(id); });
   }
+  let CARDS = null;
+  fetch('/api/agents').then(r => r.json()).then(c => { CARDS = c; if (selected) detail(selected); }).catch(() => {});
   function detail(id) {
     selected = id; Object.values(el).forEach(n => n.classList.toggle('sel', n.dataset.id === id));
     const n = NODES[id], h = hist[id].slice(-8).reverse(), box = $('wfdetail');
-    const kind = {core: 'control plane', code: 'plain code', model: 'Vultr AI model', human: 'human'}[n[5]] || n[5];
+    const kind = {core: 'control plane', code: 'plain code', model: 'Vultr AI model', chat: 'Vultr AI models', human: 'human'}[n[5]] || n[5];
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
     box.innerHTML = `<div class="dhead"><b>${esc(n[3])}</b><span class="dk ${n[5]}">${esc(kind)}</span><button type="button" class="dx" id="wfdx" aria-label="Close">×</button></div>`
       + `<p>${esc(INFO[id] || n[4])}</p>`
+      + (CARDS && CARDS[id] ? `<h6>Agent card</h6><p class="small">${esc(CARDS[id].does)}</p><p class="small"><b>Model:</b> ${esc(CARDS[id].model || 'none (plain code)')}</p><h6>System prompt</h6><pre class="sysprompt">${esc(CARDS[id].prompt)}</pre>` : '')
       + (h.length ? `<h6>Latest output</h6><div class="dout">${esc(h[0].text)}</div><h6>History</h6><ul>${h.map(x => `<li><i>${x.at}s</i> ${esc(x.text)}</li>`).join('')}</ul>` : '<p class="small">No activity yet in this scan.</p>');
     box.classList.remove('hidden'); $('wfdx').onclick = () => { box.classList.add('hidden'); selected = null; Object.values(el).forEach(x => x.classList.remove('sel')); };
   }
@@ -125,17 +136,43 @@ const WF = (() => {
       const p = document.createElementNS(NS, 'path');
       p.setAttribute('d', pathD(a, b)); p.setAttribute('class', keep[a + '>' + b] || ('we ' + (k || ''))); p.dataset.e = a + '>' + b; svg.appendChild(p);
     });
-    syncEdges();
+    drawArgues(); syncEdges();
   }
   function syncEdges() {  // a line shows only when both of its nodes have appeared
     document.querySelectorAll('#wfSvg .we').forEach(p => { if (!p.dataset.e) return; const [a, b] = p.dataset.e.split('>'); p.style.opacity = (el[a] && el[b] && !el[a].classList.contains('ghost') && !el[b].classList.contains('ghost')) ? '' : '0'; });
   }
-  function argue(a, b, hot) {  // a temporary line between two agents while they argue
+  const HUES = {script: 262, endpoints: 200, privacy: 160, lure: 24, intel: 330, cloak: 48, check: 210, geo: 180, tls: 120, lead: 285, v_careless: 12, v_phone: 190, v_bot: 90};
+  const NAME = {lead: 'Review lead'};
+  const escH = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  function say(who, text, o = {}) {  // one message in the agent chat room
+    const list = $('crList'); if (!list) return null; list.querySelector('.cr-empty')?.remove();
+    list.querySelectorAll('.cr-typing').forEach(x => x.remove());
+    const m = document.createElement('div'); m.className = 'cr-msg ' + (o.cls || '');
+    const nm = NAME[who] || (NODES[who] ? NODES[who][3] : who), h = HUES[who] ?? 220;
+    m.innerHTML = `<span class="cr-av" style="--h:${h}">${iconHtml('🧠')}</span><div class="cr-body"><div class="cr-name" style="--h:${h}">${escH(nm)}${o.to ? ` <i>to ${escH(NODES[o.to] ? NODES[o.to][3] : o.to)}</i>` : ''}${o.tag ? `<u class="cr-tag ${o.cls || ''}">${escH(o.tag)}</u>` : ''}</div><div class="cr-text">${o.html || escH(text)}</div></div>`;
+    list.appendChild(m); list.scrollTop = list.scrollHeight; $('wfStage').querySelector('.cr-live').textContent = o.live || 'live'; return m;
+  }
+  function typing(who) {
+    const list = $('crList'); if (!list) return; const m = document.createElement('div'); m.className = 'cr-msg cr-typing';
+    m.innerHTML = `<span class="cr-av" style="--h:${HUES[who] ?? 220}">${iconHtml('🧠')}</span><div class="cr-body"><div class="cr-name">${escH(NODES[who] ? NODES[who][3] : who)}</div><div class="cr-text"><b class="dots"><s></s><s></s><s></s></b></div></div>`;
+    list.appendChild(m); list.scrollTop = list.scrollHeight;
+  }
+  let ARGUES = [];
+  function drawArgues() {
+    ARGUES.forEach(g => { if (!el[g.a] || !el[g.b]) return; const p = document.createElementNS(NS, 'path'); p.setAttribute('d', pathD(g.a, g.b)); p.setAttribute('class', 'we argue ' + g.cls); $('wfSvg').appendChild(p); });
+  }
+  function bubble(id, text, cls) {  // a speech bubble above an agent while it speaks in the debate
+    if (!el[id]) return; const st = $('wfStage'), n = el[id];
+    const d = document.createElement('div'); d.className = 'wbub ' + cls; d.textContent = String(text).slice(0, 150);
+    d.style.left = n.offsetLeft + 'px'; d.style.top = (n.offsetTop - n.offsetHeight / 2 - 8) + 'px'; st.appendChild(d);
+    setTimeout(() => d.classList.add('out'), 9000); setTimeout(() => d.remove(), 9600);
+  }
+  function argue(a, b, cls, text, speaker) {  // a labelled line between two agents; stays until the scan ends
     if (!el[a] || !el[b]) return; reveal([a, b], 0);
-    const p = document.createElementNS(NS, 'path'); p.setAttribute('d', pathD(a, b)); p.setAttribute('class', 'we argue' + (hot ? ' hot' : '')); $('wfSvg').appendChild(p);
-    const len = p.getTotalLength(), dot = document.createElementNS(NS, 'circle'); dot.setAttribute('r', 6); dot.setAttribute('class', 'wp' + (hot ? ' bad' : '')); $('wfSvg').appendChild(dot);
+    ARGUES.push({a, b, cls}); if (ARGUES.length > 8) ARGUES.shift(); draw();
+    const p = [...document.querySelectorAll('#wfSvg .argue')].pop(); if (!p) return;
+    const len = p.getTotalLength(), dot = document.createElementNS(NS, 'circle'); dot.setAttribute('r', 6); dot.setAttribute('class', 'wp' + (cls === 'hot' ? ' bad' : '')); $('wfSvg').appendChild(dot);
     const t0 = performance.now(); (function step(t) { const k = Math.min(1, (t - t0) / 900), pt = p.getPointAtLength(k * len); dot.setAttribute('cx', pt.x); dot.setAttribute('cy', pt.y); if (t - t0 < 900) requestAnimationFrame(step); else dot.remove(); })(t0);
-    setTimeout(() => p.remove(), 2600);
   }
   const edge = (a, b) => document.querySelector(`#wfSvg .we[data-e="${a}>${b}"]`);
   function light(a, b, bad) {
@@ -176,6 +213,7 @@ const WF = (() => {
   function head(text, run) { $('wfState').textContent = text; $('wf').classList.toggle('run', !!run); }
 
   function reset() {
+    ARGUES = []; { const l = $('crList'); if (l) l.innerHTML = '<p class="cr-empty">The agents meet here after the visitors leave: they post findings, question each other, answer and vote.</p>'; }
     if (!started) { started = true; build(); }
     T0 = performance.now(); destroyed = 0; expected = 1; Object.keys(hist).forEach(k => hist[k] = []);
     Object.entries(el).forEach(([id, n]) => { n.classList.remove('active', 'done', 'bad', 'pop'); n.classList.toggle('ghost', !START_VISIBLE.includes(id)); n.querySelector('.live').textContent = ''; n.title = ''; });
@@ -202,12 +240,21 @@ const WF = (() => {
       case 'debate': {
         const node = {v_careless: 'v_careless', v_phone: 'v_phone', v_bot: 'v_bot', evidence: 'debate'};
         reveal('debate');
-        if (ev.phase === 'share') { ['lure', 'intel', 'cloak'].forEach(a => flow(a, 'debate')); state('debate', 'active', ev.text); head('The agents are debating', true); }
-        else if (ev.phase === 'challenge') { argue(node[ev.with] || ev.with, ev.to, true); state('debate', 'active', 'challenge → ' + ev.name); }
-        else if (ev.phase === 'reply') { argue(ev.from, 'debate', false); state(ev.from, ev.stance === 'revise' ? 'active' : 'done', (ev.stance === 'revise' ? 'revised: ' : 'kept: ') + (ev.revised || ev.text)); }
-        else if (ev.phase === 'consensus') {
+        if (ev.phase === 'share') {
+          ['lure', 'intel', 'cloak'].forEach(a => flow(a, 'debate')); state('debate', 'active', ev.text); head('The agents are debating', true);
+          say('lead', '', {cls: 'sys', tag: 'board', html: `${escH(ev.text)}<div class="cr-avs">${(ev.agents || []).map(a => `<span class="cr-av s" style="--h:${HUES[a] ?? 220}" title="${escH(NODES[a] ? NODES[a][3] : a)}">${iconHtml('🧠')}</span>`).join('')}</div>`});
+        } else if (ev.phase === 'challenge') {
+          const from = node[ev.with] || (el[ev.with] ? ev.with : 'debate');
+          argue(from, ev.to, 'hot'); state('debate', 'active', 'challenge → ' + ev.name);
+          say(el[ev.with] && ev.with !== 'debate' ? ev.with : 'lead', ev.text, {cls: 'ask', tag: 'question', to: ev.to}); typing(ev.to);
+        } else if (ev.phase === 'reply') {
+          argue(ev.from, 'debate', ev.stance === 'revise' ? 'revise' : 'keep'); state(ev.from, ev.stance === 'revise' ? 'active' : 'done', (ev.stance === 'revise' ? 'revised: ' : 'kept: ') + (ev.revised || ev.text));
+          say(ev.from, ev.text + (ev.revised ? '  →  ' + ev.revised : ''), {cls: ev.stance === 'revise' ? 'revise' : 'keep', tag: ev.stance === 'revise' ? 'revised' : 'keeps finding'});
+        } else if (ev.phase === 'consensus') {
           Object.entries(ev.votes || {}).forEach(([a, vt]) => { if (el[a] && vt === 'alarm') el[a].classList.add('bad'); });
           state('debate', ev.dissent && ev.dissent.length ? 'bad' : 'done', ev.total ? ev.agree + '/' + ev.total + ' agree' : 'no votes');
+          const chips = Object.entries(ev.votes || {}).filter(([, v]) => v !== 'abstain').map(([a, v]) => `<span class="cr-vote ${v}"><span class="cr-av s" style="--h:${HUES[a] ?? 220}">${iconHtml('🧠')}</span>${escH(NODES[a] ? NODES[a][3] : a)} · ${v}</span>`).join('');
+          say('lead', '', {cls: 'sys vote', tag: 'consensus', live: 'agreed', html: `${escH(ev.text || '')}<div class="cr-votes">${chips}</div>`});
         }
         break;
       }

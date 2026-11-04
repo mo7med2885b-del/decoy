@@ -67,6 +67,12 @@ def index():
     return FileResponse(ROOT / "static" / "index.html", headers={"Cache-Control": "no-store"})
 
 
+@app.get("/api/agents")
+def agent_cards():
+    from decoy import cards
+    return cards.cards()
+
+
 @app.get("/api/health")
 def health():
     mode = env("DECOY_SANDBOX", "docker")
