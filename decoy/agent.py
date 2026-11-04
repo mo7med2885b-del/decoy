@@ -177,7 +177,7 @@ def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, 
     prefix = "step" if lead else f"p-{persona['id']}"
     try:
         info = sb.start()
-        emit({"type": "sandbox", "phase": "created", "info": info})
+        emit({"type": "sandbox", "phase": "created", "info": info, "who": persona["id"]})
         demo = env("DECOY_DEMO", "1") == "1"
         state = sb.send({"cmd": "open", "url": url, "canary": canary, "persona": persona,
                          "demo_ip": ("127.0.0.1" if sb.mode == "local" else "host-gateway") if demo else None,
@@ -255,7 +255,7 @@ def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, 
     except Exception as e:
         error = f"Sandbox problem: {e}"
     finally:
-        emit({"type": "sandbox", "phase": "destroyed", "info": sb.destroy()})
+        emit({"type": "sandbox", "phase": "destroyed", "info": sb.destroy(), "who": persona["id"]})
     return {"error": error, "info": sb.info, "first_shot": first_shot, "first_full": first_full}
 
 

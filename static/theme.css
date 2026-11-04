@@ -382,3 +382,15 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .wn.core { width: 200px; }
 @media (max-width: 1150px) { .layout { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { .wf-view { min-height: 940px; } .wf-stage { height: 940px; } .wn { width: 150px; padding: 8px 9px; } .wn.core { width: 170px; } }
+
+/* ---- the swarm canvas: nodes appear when their agent starts ---- */
+.wn.ghost { opacity: 0; transform: translate(-50%, -50%) scale(.6); pointer-events: none; }
+.wn { transition: opacity .45s, transform .45s, border-color .3s, box-shadow .3s, background .3s; }
+.wn.pop { animation: popin .7s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes popin { 0% { box-shadow: 0 0 0 0 rgba(45, 123, 255, .8); } 60% { box-shadow: 0 0 0 18px rgba(45, 123, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(45, 123, 255, 0); } }
+.wn.model.active::after, .wn.code.active::after { content: ""; position: absolute; right: 9px; top: 9px; width: 8px; height: 8px; border-radius: 50%; background: var(--blue-glow); animation: pulse 1s infinite; }
+.we { transition: opacity .5s; }
+.wf-view { min-height: 1130px; } .wf-stage { height: 1130px; }
+@media (max-width: 700px) { .wf-view { min-height: 1130px; } .wf-stage { height: 1130px; } }
+
+.wn b { overflow: hidden; text-overflow: ellipsis; } .wn { width: 170px; } .wn.core { width: 210px; }
