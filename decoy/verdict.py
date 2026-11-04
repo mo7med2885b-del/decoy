@@ -39,6 +39,10 @@ class Evidence:
         self.net_log: list[dict] = []         # every request the page made (host, method, type, blocked)
         self.leak_urls: dict[str, set] = {}   # host -> URLs that received the fake data
         self.scripts: list[str] = []
+        self.console: list[dict] = []
+        self.gates: set[str] = set()
+        self.cookies: list[dict] = []
+        self.endpoints: list[dict] = []   # non-page requests (xhr, fetch, beacons, forms) with status and redacted payload
         self.script_srcs: list[str] = []
 
     def add_state(self, state: dict, step: int):
@@ -52,6 +56,13 @@ class Evidence:
             self.redirects = list(state["redirects"])
         if self.first_sig is None and (state.get("title") or page.get("fields") is not None):
             self.first_sig = ((state.get("title") or "").strip().lower(), bool(page.get("has_password")))
+        if page.get("gate"):
+            self.gates.add(page["gate"])
+        for c in state.get("console") or []:
+            if len(self.console) < 80:
+                self.console.append(c)
+        if state.get("cookies"):
+            self.cookies = state["cookies"][:25]
         for s in page.get("scripts") or []:
             if s not in self.scripts and len(self.scripts) < 8:
                 self.scripts.append(s)
@@ -61,6 +72,11 @@ class Evidence:
         for n in state.get("network", []):
             if len(self.net_log) < 300:
                 self.net_log.append({"host": n.get("host", ""), "method": n.get("method", ""), "type": n.get("type", ""), "blocked": bool(n.get("blocked"))})
+            if n.get("type") in ("xhr", "fetch", "ping", "other") or n.get("post") or n.get("method") == "POST":
+                ep = {"method": n.get("method", ""), "url": n.get("url", "")[:200], "host": n.get("host", ""), "type": n.get("type", ""), "status": n.get("status"),
+                      "post": n.get("post", ""), "blocked": bool(n.get("blocked")), "leak": bool(n.get("canary_sent"))}
+                if len(self.endpoints) < 40 and not any(e["url"] == ep["url"] and e["method"] == ep["method"] for e in self.endpoints):
+                    self.endpoints.append(ep)
             if n.get("canary_sent"):
                 self.leaks.setdefault(n["host"], set()).update(n["canary_sent"])
                 self.leak_urls.setdefault(n["host"], set()).add(n.get("url", "")[:200])
@@ -104,6 +120,10 @@ class Evidence:
         self.net_log += [n for n in other.net_log if len(self.net_log) < 300]
         self.scripts += [s for s in other.scripts if s not in self.scripts][:max(0, 8 - len(self.scripts))]
         self.script_srcs += [s for s in other.script_srcs if s not in self.script_srcs]
+        self.endpoints += [e for e in other.endpoints if len(self.endpoints) < 40 and not any(x["url"] == e["url"] and x["method"] == e["method"] for x in self.endpoints)]
+        self.console += [c for c in other.console if len(self.console) < 80 and c not in self.console]
+        self.cookies = self.cookies or other.cookies
+        self.gates |= other.gates
         if len(other.redirects) > len(self.redirects):
             self.redirects = other.redirects
 
@@ -143,6 +163,8 @@ class Evidence:
             items.append({"kind": "card_on_lookalike", "weight": 15, "text": "A look-alike site asks for your card number."})
         chain = []
         for r in self.redirects:
+            if urlsplit(r.get("from") or "").hostname == urlsplit(r.get("to") or "").hostname:
+                continue  # http to https on the same site is not a hop
             for u in (r.get("from"), r.get("to")):
                 h = urlsplit(u or "").hostname
                 if h and (not chain or chain[-1] != h):
@@ -168,21 +190,27 @@ class Evidence:
             checks.append("It did not try to reach private or cloud-secret addresses.")
         if not self.hidden_orders:
             checks.append("No hidden instructions for AI scanners.")
-        return {"level": level, "score": score, "evidence": items, "attacker_got": got, "checks": checks,
+        limits = []
+        if "captcha" in self.gates:
+            limits.append("A bot check (CAPTCHA) appeared. Decoy does not solve those, so anything behind it was not seen.")
+        if "verification" in self.gates:
+            limits.append("The page asked for an email or SMS verification code. Decoy never creates real accounts or reads real inboxes, so it stopped there; what the page does after sign-up was not seen.")
+        return {"level": level, "score": score, "evidence": items, "attacker_got": got, "checks": checks, "limits": limits,
                 "page_title": self.last_title, "page_host": self.last_host, "official": self.official,
                 "blocked": self.blocked, "downloads": self.downloads}
 
 
 def template_summary(v: dict) -> str:
     page = f"'{v['page_title']}'" if v.get("page_title") else "a normal page"
+    extra = (" Note: " + " ".join(v.get("limits", []))) if v.get("limits") else ""
     if v["level"] == "LOOKS SAFE":
         brand = v["official"].split("official ", 1)[1].split(" address", 1)[0] if v.get("official") else "official"
         return (f"This is a real {brand} link. We opened it in a sealed browser and it is a normal page: {page}. "
-                "It did not ask for your password, push a download or send data to other sites. Nothing to worry about.")
+                "It did not ask for your password, push a download or send data to other sites. Nothing to worry about." + extra)
     if v["level"] == "NO THREAT FOUND":
         return (f"We opened it in a sealed browser: it is {page} on {v.get('page_host') or 'this site'}. It did not ask for "
                 "a password or card, push a download or send data to other sites, so it looks fine. As always, do not type "
-                "passwords on a page you reached from a message.")
+                "passwords on a page you reached from a message." + extra)
     lead = "Do not open this link." if v["level"] == "DANGEROUS" else "Be careful with this link."
     return lead + " " + v["evidence"][0]["text"] + " The reasons are listed below."
 
@@ -201,8 +229,8 @@ def cloaking(personas: list[dict]) -> dict | None:
                 "text": f"The page showed different things to different visitors: {', '.join(sorted(pw))} saw a login form, "
                         f"but {', '.join(quiet)} saw a harmless page. Scam pages do this to hide from security tools."}
     titles = {p["sig"][0] for p in seen if p["sig"][0]}
-    if len(titles) > 1:
-        return {"kind": "cloaking", "weight": 20,
-                "text": "The page showed a different title to different visitors (" +
-                        "; ".join(f"{p['name']}: '{p['sig'][0][:40]}'" for p in seen) + "), which can be a sign of cloaking."}
+    if len(titles) > 1:  # informational only: many real sites send phones elsewhere (mobile sites, language, app links)
+        return {"kind": "visitor_difference", "weight": 3,
+                "text": "Visitors on different devices were shown different pages (" +
+                        "; ".join(f"{p['name']}: '{p['sig'][0][:34]}'" for p in seen) + "). That is common for mobile and regional sites, so it is not treated as a threat by itself."}
     return None

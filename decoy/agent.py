@@ -171,7 +171,7 @@ def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, 
     The sandbox is destroyed before this returns, whatever happens."""
     lead = bool(persona.get("lead"))
     sb = Sandbox(memory=None if lead else "512m", scan_id=scan_id)
-    history, tried, error, first_shot = [], set(), None, None
+    history, tried, error, first_shot, first_full = [], set(), None, None, None
     prefix = "step" if lead else f"p-{persona['id']}"
     try:
         info = sb.start()
@@ -188,6 +188,11 @@ def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, 
                 (out_dir / f"{prefix}-{step}.jpg").write_bytes(base64.b64decode(state["screenshot"]))
                 shot_url = f"/runs/{scan_id}/{prefix}-{step}.jpg"
                 first_shot = first_shot or shot_url
+            full_url = None
+            if state.get("full"):
+                (out_dir / f"{prefix}-{step}-full.jpg").write_bytes(base64.b64decode(state["full"]))
+                full_url = f"/runs/{scan_id}/{prefix}-{step}-full.jpg"
+                first_full = first_full or full_url
             ev.add_state(state, step)
             if tracker:
                 for n in state.get("network", []):
@@ -197,12 +202,18 @@ def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, 
                     h = urlsplit(r.get("to") or "").hostname
                     if h:
                         tracker.seen(h, "redirect")
+            if lead:
+                emit({"type": "devtools", "step": step, "url": state.get("url"),
+                      "network": [{"method": n.get("method"), "host": n.get("host"), "url": n.get("url"), "type": n.get("type"), "status": n.get("status"),
+                                   "blocked": bool(n.get("blocked")), "leak": bool(n.get("canary_sent")), "post": n.get("post", "")} for n in state.get("network", [])][:60],
+                      "console": state.get("console") or [], "cookies": state.get("cookies") or [],
+                      "scripts": [s[:700] for s in ((state.get("page") or {}).get("scripts") or [])][:4], "script_srcs": ((state.get("page") or {}).get("script_srcs") or [])[:6]})
             for n in state.get("network", []):
                 if n.get("blocked"):
                     emit({"type": "containment", "step": step, "url": n["url"], "reason": n.get("reason")})
             leaks = [{"host": n["host"], "data": n["canary_sent"]} for n in state.get("network", []) if n.get("canary_sent")]
             emit({"type": "page", "step": step, "url": state.get("url"), "title": state.get("title"), "shot": shot_url,
-                  "leaks": leaks, "downloads": state.get("downloads", []), "requests": len(state.get("network", [])),
+                  "full": full_url, "leaks": leaks, "downloads": state.get("downloads", []), "requests": len(state.get("network", [])),
                   "note": state.get("note"), "asked": sorted(ev.asked)})
             if step == max_actions:
                 break
@@ -243,7 +254,7 @@ def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, 
         error = f"Sandbox problem: {e}"
     finally:
         emit({"type": "sandbox", "phase": "destroyed", "info": sb.destroy()})
-    return {"error": error, "info": sb.info, "first_shot": first_shot}
+    return {"error": error, "info": sb.info, "first_shot": first_shot, "first_full": first_full}
 
 
 def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = None) -> dict:
@@ -276,7 +287,7 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
         def f(e):
             if e["type"] == "page":
                 emit({"type": "scout", "id": p["id"], "name": p["name"], "device": p["device"], "step": e["step"], "title": e.get("title"),
-                      "shot": e.get("shot"), "leaks": e.get("leaks", []), "asked": e.get("asked", [])})
+                      "shot": e.get("shot"), "full": e.get("full"), "leaks": e.get("leaks", []), "asked": e.get("asked", [])})
         return f
 
     evs = {p["id"]: Evidence(url, signals) for p in swarm}
@@ -307,14 +318,15 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
 
     ev = evs[lead["id"]]
     visitors = [{"id": p["id"], "name": p["name"], "device": p["device"], "sig": evs[p["id"]].first_sig, "level": evs[p["id"]].verdict()["level"],
-                 "shot": results[p["id"]]["first_shot"], "title": (evs[p["id"]].last_title or ""), "error": results[p["id"]]["error"],
+                 "shot": results[p["id"]]["first_shot"], "full": results[p["id"]].get("first_full"), "title": (evs[p["id"]].last_title or ""), "error": results[p["id"]]["error"],
                  "asked": sorted(evs[p["id"]].asked)} for p in swarm]
     for p in swarm[1:]:
         ev.absorb(evs[p["id"]])
     c = cloaking([{"name": x["name"], "sig": x["sig"]} for x in visitors])
     if c:
         ev.extra.append(c)
-        emit({"type": "cloaking", "text": c["text"]})
+        if c["kind"] == "cloaking":
+            emit({"type": "cloaking", "text": c["text"]})
     v = ev.verdict()
     for g in v["attacker_got"]:
         tracker.seen(g["host"], "exfil")
@@ -326,7 +338,7 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
                          f"({', '.join(hosts)}): this looks like part of one scam campaign."})
         v = ev.verdict()
     v["memory"] = mem
-    v["swarm"] = [{k: x[k] for k in ("id", "name", "device", "level", "shot", "title", "error", "asked")} for x in visitors]
+    v["swarm"] = [{k: x[k] for k in ("id", "name", "device", "level", "shot", "full", "title", "error", "asked")} for x in visitors]
     v["summary"], v["summary_by"] = template_summary(v), "rules"
     if use_model:
         try:

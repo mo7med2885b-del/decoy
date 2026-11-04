@@ -61,6 +61,10 @@ SCAN_JS = r"""
   out.hidden_text = hidden.join(' ').slice(0, 1500);
   out.visible_text = ((document.body && document.body.innerText) || '').slice(0, 2500);
   out.has_password = !!document.querySelector('input[type=password]');
+  const frames = [...document.querySelectorAll('iframe')].map(f => f.src || '').join(' ');
+  const txt = ((document.body && document.body.innerText) || '').slice(0, 4000);
+  out.gate = /recaptcha|hcaptcha|turnstile|challenges\.cloudflare|captcha/i.test(frames + ' ' + document.documentElement.innerHTML.slice(0, 60000)) || /i'?m not a robot|verify (that )?you('| a)re (a )?human|are you a robot/i.test(txt) ? 'captcha'
+    : /(verification|security|confirmation) code|we('| ha)ve sent (you )?(an? )?(email|code|text)|check your (email|inbox)|enter the (6|4|5)[- ]digit/i.test(txt) ? 'verification' : '';
   out.scripts = [...document.scripts].filter(s => !s.src && s.textContent.trim()).slice(0, 6).map(s => s.textContent.trim().slice(0, 2500));
   out.script_srcs = [...document.scripts].filter(s => s.src).slice(0, 10).map(s => s.src.slice(0, 200));
   return out;
@@ -122,6 +126,9 @@ class Runner:
         self.demo_suffix = None
         self.requests_seen = 0
         self.redirects = []
+        self.console = []
+        self.status = {}
+        self.ctx = None
         self.mouse = (VIEW["width"] / 2, VIEW["height"] / 2)
 
     # ---- setup -------------------------------------------------------------
@@ -146,6 +153,7 @@ class Runner:
                                        locale=per.get("locale") or "en-US")
         ctx.route("**/*", self._route)
         ctx.add_init_script(CURSOR_JS)
+        self.ctx = ctx
         ctx.on("page", self._watch)
         self.page = ctx.new_page()
         self._watch(self.page)
@@ -159,10 +167,13 @@ class Runner:
         self.page = page  # follow pop-ups and new tabs
         page.on("download", self._download)
         page.on("response", self._response)
+        page.on("console", lambda m: len(self.console) < 80 and self.console.append({"type": m.type, "text": m.text[:300]}))
+        page.on("pageerror", lambda e: len(self.console) < 80 and self.console.append({"type": "error", "text": str(e)[:300]}))
         page.on("dialog", lambda d: (self.dialogs.append({"type": d.type, "message": d.message[:200]}), d.dismiss()))
 
     def _response(self, resp):
         """Record every redirect of a page navigation (a short link hiding the real destination, a hop through another site)."""
+        self.status[resp.url[:300]] = resp.status
         try:
             if 300 <= resp.status < 400 and resp.request.is_navigation_request():
                 self.redirects.append({"from": resp.url[:200], "to": (resp.headers.get("location") or "")[:200], "status": resp.status})
@@ -187,6 +198,12 @@ class Runner:
         demo = bool(self.demo_suffix and host.endswith(self.demo_suffix))
         entry = {"url": req.url[:300], "method": req.method, "host": host, "type": req.resource_type}
         body = req.post_data or ""
+        if body:  # payload preview with our fake values replaced by their names (never keep what was typed)
+            prev = body[:240]
+            for k, v in self.canary.items():
+                if v:
+                    prev = prev.replace(v, f"<{k}>").replace(v.replace("@", "%40"), f"<{k}>")
+            entry["post"] = prev
         hay = (req.url + " " + body).lower()
         sent = [k for k, v in self.canary.items() if v and (v.lower() in hay or v.lower().replace("@", "%40") in hay)]
         if sent:
@@ -229,11 +246,29 @@ class Runner:
             shot = base64.b64encode(self.page.screenshot(type="jpeg", quality=62)).decode()
         except Exception:
             shot = None
+        full = None  # the whole page, not only what fits the window (capped so a never-ending page cannot flood us)
+        try:
+            vp = self.page.viewport_size or VIEW
+            height = int(self.page.evaluate("Math.min(document.documentElement.scrollHeight, 6000)"))
+            if height > vp["height"] + 40:
+                full = base64.b64encode(self.page.screenshot(type="jpeg", quality=50, full_page=True,
+                                                             clip={"x": 0, "y": 0, "width": vp["width"], "height": height})).decode()
+        except Exception:
+            full = None
         net, self.network = self.network, []
+        for n in net:
+            n["status"] = self.status.get(n["url"])
+        con, self.console = self.console, []
+        cookies = []
+        try:
+            for c in (self.ctx.cookies() if self.ctx else [])[:25]:
+                cookies.append({"name": c["name"][:60], "domain": c["domain"], "secure": c["secure"], "httpOnly": c["httpOnly"], "sameSite": c.get("sameSite", "")})
+        except Exception:
+            pass
         dls, self.downloads = self.downloads, []
         dlg, self.dialogs = self.dialogs, []
-        return {"ok": True, "url": self.page.url[:500], "title": (self.page.title() or "")[:150], "screenshot": shot,
-                "page": info, "network": net, "downloads": dls, "dialogs": dlg, "note": note, "redirects": self.redirects[:12]}
+        return {"ok": True, "url": self.page.url[:500], "title": (self.page.title() or "")[:150], "screenshot": shot, "full": full or shot,
+                "page": info, "network": net, "downloads": dls, "dialogs": dlg, "note": note, "redirects": self.redirects[:12], "console": con, "cookies": cookies}
 
     # ---- live frames + a visible cursor, so a person can watch the agent work ----
     def frame(self):

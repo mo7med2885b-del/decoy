@@ -215,3 +215,25 @@ def test_geo_demo_hosts_are_simulated_and_private_addresses_never_looked_up():
     t.seen("n0rthbank-login.test", "lure"); t.seen("drop-zone.test", "contacted"); t.seen("drop-zone.test", "exfil"); t.seen("drop-zone.test", "contacted")
     t.wait()
     assert [(g["host"], g["role"]) for g in sorted(got, key=lambda g: g["role"])] == [("drop-zone.test", "contacted"), ("drop-zone.test", "exfil"), ("n0rthbank-login.test", "lure")] or len(got) >= 2
+
+
+def test_title_difference_alone_is_not_cloaking_and_gates_are_reported_as_limits():
+    from decoy.verdict import cloaking
+    c = cloaking([{"name": "Laptop", "sig": ("error 404", False)}, {"name": "Phone", "sig": ("kfc menu", False)}])
+    assert c["kind"] == "visitor_difference" and c["weight"] < 10
+    ev = Evidence("https://shop.example/", [])
+    ev.add_state({"url": "https://shop.example/", "title": "Shop", "page": {"gate": "captcha"}, "network": []}, 0)
+    ev.add_state({"url": "https://shop.example/", "title": "Shop", "page": {"gate": "verification"}, "network": []}, 1)
+    v = ev.verdict()
+    assert len(v["limits"]) == 2 and "CAPTCHA" in v["limits"][0]
+    from decoy.verdict import template_summary
+    assert "Note:" in template_summary(v)
+
+
+def test_new_analysts_have_rule_based_findings():
+    from decoy import investigate as inv
+    case = _case(endpoints=[{"method": "POST", "url": "http://drop-zone.test:8601/collect", "host": "drop-zone.test", "type": "fetch", "status": 204, "post": '{"email":"<EMAIL>"}', "blocked": False, "leak": True}],
+                 cookies=[{"name": "sid", "secure": False, "httpOnly": False}], gates=["captcha"], lure={"urgency": True, "asked": ["PASSWORD"], "title": "t", "official": False})
+    assert any("carried the fake data" in f for f in inv.rules_findings("endpoint", case))
+    assert any("lack the Secure" in f for f in inv.rules_findings("cookies", case))
+    assert any("urgency" in f for f in inv.rules_findings("lure", case))

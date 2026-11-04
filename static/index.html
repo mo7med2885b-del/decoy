@@ -119,6 +119,15 @@
             <div class="strip" id="strip"></div>
           </section>
 
+          <section class="card hidden" id="devcard">
+            <h3>Behind the page <small class="small">what a browser's developer tools would show, captured inside the sandbox</small></h3>
+            <div class="dtabs" id="dtabs"><button type="button" data-t="net" class="on">Network <b id="dn">0</b></button><button type="button" data-t="con">Console <b id="dc">0</b></button><button type="button" data-t="ck">Cookies <b id="dk">0</b></button><button type="button" data-t="js">Scripts <b id="dj">0</b></button></div>
+            <div class="dpane" id="dp-net"><div class="tw"><table class="dt"><thead><tr><th>Method</th><th>Host and path</th><th>Type</th><th>Status</th><th></th></tr></thead><tbody id="dtnet"></tbody></table></div><pre class="dpost hidden" id="dtpost"></pre></div>
+            <div class="dpane hidden" id="dp-con"><ul class="dcon" id="dtcon"></ul></div>
+            <div class="dpane hidden" id="dp-ck"><div class="tw"><table class="dt"><thead><tr><th>Name</th><th>Domain</th><th>Secure</th><th>HttpOnly</th><th>SameSite</th></tr></thead><tbody id="dtck"></tbody></table></div></div>
+            <div class="dpane hidden" id="dp-js"><div id="dtjs"></div></div>
+          </section>
+
           <div class="grid3">
             <section class="card"><h3>Sandbox</h3>
               <ol class="life"><li id="l-created">Created</li><li id="l-running">Running</li><li id="l-destroyed">Destroyed</li></ol>
@@ -155,6 +164,7 @@
   </main>
   <footer class="foot">A clean result means nothing harmful was seen during this visit. It is not a guarantee.</footer>
 </div>
+<div class="lightbox hidden" id="lightbox"><div class="lbbar"><span id="lbcap"></span><a id="lbopen" target="_blank" rel="noopener">Open full size</a><button type="button" id="lbclose" aria-label="Close">×</button></div><div class="lbscroll"><img id="lbimg" alt="Full page screenshot from the sandbox"></div></div>
 <script src="/static/vendor/globe.gl.min.js"></script>
 <script src="/static/globe.js"></script>
 <script src="/static/workflow.js"></script>

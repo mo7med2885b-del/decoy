@@ -60,7 +60,7 @@ function buildSwarm(list) {
 }
 function swUpdate(id, o) {
   const d = $('sw-' + id); if (!d) return;
-  if (o.shot) d.querySelector('.swimg').innerHTML = `<img src="${o.shot}" alt="">`;
+  if (o.shot) { d.querySelector('.swimg').innerHTML = `<img src="${o.shot}" alt="" title="Click to see the whole page">`; const im = d.querySelector('.swimg img'); im.dataset.full = o.full || o.shot; im.dataset.cap = d.querySelector('.swh b').textContent + ' · ' + d.querySelector('.swh span').textContent; im.onclick = () => openShot(im.dataset.full, im.dataset.cap); }
   if (o.title != null) d.querySelector('.swt').textContent = o.title ? `Saw: ${o.title}` : 'Saw a page';
   const bits = [];
   if ((o.asked || []).length) bits.push('asked for ' + o.asked.map(x => (LABELS[x] || x).toLowerCase()).join(' + '));
@@ -133,6 +133,29 @@ async function investigate() {
     source.onerror = () => source.close();
   } catch (e) { $('invbtn').disabled = false; }
 }
+function openShot(src, cap) {
+  if (!src) return; $('lbimg').src = src; $('lbopen').href = src; $('lbcap').textContent = cap || ''; $('lightbox').classList.remove('hidden'); $('lightbox').querySelector('.lbscroll').scrollTop = 0;
+}
+const DT = {net: new Set(), js: new Set(), con: 0};
+function devtools(ev) {
+  $('devcard').classList.remove('hidden');
+  (ev.network || []).forEach(n => {
+    const key = n.method + n.url; if (DT.net.has(key)) return; DT.net.add(key);
+    let path = n.url; try { const u = new URL(n.url); path = u.pathname + u.search; } catch (e) {}
+    const tr = document.createElement('tr'); tr.className = n.leak ? 'leak' : n.blocked ? 'blk' : '';
+    tr.innerHTML = `<td>${esc(n.method)}</td><td><b>${esc(n.host)}</b><span class="pth">${esc(path.slice(0, 80))}</span></td><td>${esc(n.type)}</td><td>${n.blocked ? '—' : esc(n.status ?? '')}</td>`
+      + `<td>${n.leak ? '<i class="fl bad">carries fake data</i>' : n.blocked ? '<i class="fl bad">blocked</i>' : ''}</td>`;
+    tr.onclick = () => { const p = $('dtpost'); p.classList.remove('hidden'); p.textContent = `${n.method} ${n.url}\n` + (n.post ? `payload (typed values replaced by their names):\n${n.post}` : '(no payload)'); };
+    $('dtnet').appendChild(tr);
+  });
+  $('dn').textContent = DT.net.size;
+  (ev.console || []).forEach(c => { DT.con++; const li = document.createElement('li'); li.className = c.type; li.innerHTML = `<i>${esc(c.type)}</i>${esc(c.text)}`; $('dtcon').appendChild(li); });
+  $('dc').textContent = DT.con;
+  if ((ev.cookies || []).length) { $('dtck').innerHTML = ev.cookies.map(c => `<tr class="${c.secure && c.httpOnly ? '' : 'blk'}"><td><b>${esc(c.name)}</b></td><td>${esc(c.domain)}</td><td>${c.secure ? 'yes' : 'no'}</td><td>${c.httpOnly ? 'yes' : 'no'}</td><td>${esc(c.sameSite || '-')}</td></tr>`).join(''); $('dk').textContent = ev.cookies.length; }
+  (ev.scripts || []).forEach(s => { if (DT.js.has(s)) return; DT.js.add(s); const d = document.createElement('div'); d.className = 'js'; d.innerHTML = `<small>inline script</small><pre>${esc(s)}</pre>`; $('dtjs').appendChild(d); });
+  (ev.script_srcs || []).forEach(s => { if (DT.js.has(s)) return; DT.js.add(s); const d = document.createElement('div'); d.className = 'js'; d.innerHTML = `<small>external script</small><pre>${esc(s)}</pre>`; $('dtjs').appendChild(d); });
+  $('dj').textContent = DT.js.size;
+}
 function initQr() {
   $('qrfile').onchange = async () => {
     const f = $('qrfile').files[0]; if (!f) return; $('qrnote').textContent = 'Reading the QR code…';
@@ -178,6 +201,10 @@ async function init() {
   };
   $('cancel').onclick = () => scanId && fetch(`/api/scan/${scanId}/cancel`, {method: 'POST'});
   document.querySelectorAll('.decide button').forEach(b => b.onclick = () => decide(b.dataset.d));
+  document.querySelectorAll('#dtabs button').forEach(b => b.onclick = () => { document.querySelectorAll('#dtabs button').forEach(x => x.classList.toggle('on', x === b)); document.querySelectorAll('.dpane').forEach(p => p.classList.toggle('hidden', p.id !== 'dp-' + b.dataset.t)); });
+  $('shot').onclick = () => $('shot').dataset.full && openShot($('shot').dataset.full, $('shot').dataset.cap);
+  $('lbclose').onclick = () => $('lightbox').classList.add('hidden'); $('lightbox').onclick = e => { if (e.target.id === 'lightbox') $('lightbox').classList.add('hidden'); };
+  addEventListener('keydown', e => { if (e.key === 'Escape') $('lightbox').classList.add('hidden'); });
 }
 
 function reset() {
@@ -197,7 +224,8 @@ function reset() {
   ['l-created', 'l-running', 'l-destroyed'].forEach(id => $(id).className = '');
   $('seal').className = 'seal'; $('seal').textContent = 'STARTING';
   evCount = 0; $('invcard').classList.add('hidden'); $('desks').innerHTML = ''; $('report').classList.add('hidden'); $('invbar').classList.add('hidden');
-  WF.reset(); try { GLB.reset(); } catch (e) {} buildSwarm([]); $('memory').classList.add('hidden'); $('askbox').classList.add('hidden'); $('askout').classList.add('hidden'); $('askout').textContent = '';
+  WF.reset(); try { GLB.reset(); } catch (e) {}
+  DT.net.clear(); DT.js.clear(); DT.con = 0; ['dtnet', 'dtcon', 'dtck', 'dtjs'].forEach(i => $(i).innerHTML = ''); ['dn', 'dc', 'dk', 'dj'].forEach(i => $(i).textContent = 0); $('devcard').classList.add('hidden'); $('dtpost').classList.add('hidden'); $('lightbox').classList.add('hidden'); buildSwarm([]); $('memory').classList.add('hidden'); $('askbox').classList.add('hidden'); $('askout').classList.add('hidden'); $('askout').textContent = '';
   Object.keys(count).forEach(k => count[k] = 0);
   stat('sSteps', 0); stat('sBlocked', 0); stat('sLeaks', 0); stat('sCalls', 0);
   queue.length = 0;
@@ -274,7 +302,8 @@ function handle(ev) {
       }
       break;
     case 'page':
-      swUpdate('careless', {shot: ev.shot, title: ev.title, asked: ev.asked, leaks: ev.leaks});
+      swUpdate('careless', {shot: ev.shot, full: ev.full, title: ev.title, asked: ev.asked, leaks: ev.leaks});
+      if (ev.full) { $('shot').dataset.full = ev.full; $('shot').dataset.cap = 'Step ' + (ev.step + 1) + ' · ' + (ev.title || ev.url || ''); }
       node('explore', 'active');
       count.steps++; stat('sSteps', count.steps);
       $('addr').textContent = ev.url || '';
@@ -282,7 +311,9 @@ function handle(ev) {
         $('shot').src = ev.shot;
         const t = document.createElement('img');
         t.src = ev.shot; t.title = `Step ${ev.step}: ${ev.title || ''}`;
-        t.onclick = () => { $('shot').src = ev.shot; document.querySelectorAll('.strip img').forEach(x => x.classList.remove('on')); t.classList.add('on'); };
+        t.dataset.full = ev.full || ev.shot;
+        t.ondblclick = () => openShot(t.dataset.full, 'Step ' + (ev.step + 1) + ' · ' + (ev.title || ''));
+        t.onclick = () => { $('shot').src = ev.shot; $('shot').dataset.full = t.dataset.full; $('shot').dataset.cap = 'Step ' + (ev.step + 1) + ' · ' + (ev.title || ''); document.querySelectorAll('.strip img').forEach(x => x.classList.remove('on')); t.classList.add('on'); };
         document.querySelectorAll('.strip img').forEach(x => x.classList.remove('on'));
         t.classList.add('on'); $('strip').appendChild(t);
       }
@@ -294,6 +325,7 @@ function handle(ev) {
       (ev.downloads || []).forEach(d => trace(`The page pushed a download: ${d.filename}. It stays inside the sandbox.`, 'download · sandbox', 'bad'));
       if (ev.note) trace(ev.note, 'sandbox');
       break;
+    case 'devtools': devtools(ev); break;
     case 'frame':  // live view of the sandbox browser: cursor moving and text being typed
       $('shot').src = ev.shot;
       break;
@@ -353,11 +385,12 @@ function showVerdict(v) {
   $('vsum').textContent = '';
   typeInto($('vsum'), v.summary);
   $('evidence').innerHTML = v.evidence.map(e => `<li>${esc(e.text)}<span class="w">+${e.weight}</span>${e.quote ? `<q>${esc(e.quote)}</q>` : ''}</li>`).join('')
-    + (risk === 'clean' ? (v.checks || []).map(c => `<li class="pass">${esc(c)}</li>`).join('') : '');
+    + (risk === 'clean' ? (v.checks || []).map(c => `<li class="pass">${esc(c)}</li>`).join('') : '')
+    + (v.limits || []).map(c => `<li class="limit">${esc(c)}</li>`).join('');
   $('loot').innerHTML = (v.attacker_got || []).map(g => `<div class="lootbox"><b>${esc(g.host)}</b> received your fake ${esc(g.data.map(d => (LABELS[d] || d).toLowerCase()).join(', '))}</div>`).join('')
     || '<p class="small">Nothing was sent to another server.</p>';
   $('vgrid').classList.remove('hidden'); $('decide').classList.remove('hidden');
-  showMemory(v.memory); (v.swarm || []).forEach(s => swUpdate(s.id, {level: s.level, title: s.title, asked: s.asked}));
+  showMemory(v.memory); (v.swarm || []).forEach(s => swUpdate(s.id, {level: s.level, title: s.title, asked: s.asked, shot: s.shot, full: s.full}));
   $('askbox').classList.remove('hidden'); refreshHistory(); if (mode !== 'investigate') $('invbar').classList.remove('hidden');
   trace(`Verdict ${v.level}, score ${v.score}/100, from ${v.evidence.length} pieces of evidence.`, 'evidence judge · code', risk === 'clean' ? 'good' : 'bad');
   stepTo(3);

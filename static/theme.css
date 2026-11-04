@@ -341,3 +341,24 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .dout { font: 12px/1.5 "JetBrains Mono", Consolas, monospace; background: rgba(3, 6, 14, .5); border-radius: 10px; padding: 8px 10px; overflow-wrap: anywhere; }
 .wf-detail ul { margin: 0; padding: 0; list-style: none; font-size: 12px; max-height: 150px; overflow: auto; } .wf-detail li { padding: 3px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; } .wf-detail li i { font-style: normal; color: var(--blue-glow); font-weight: 700; margin-right: 6px; }
 :root[data-theme="light"] .wf-detail { background: #fff; } :root[data-theme="light"] .dout { background: #eef3ff; } :root[data-theme="light"] .dk { background: rgba(11, 21, 48, .07); }
+
+/* ---- lightbox, inspector, limits, desks in light mode ---- */
+.swimg img, #shot { cursor: zoom-in; }
+.lightbox { position: fixed; inset: 0; z-index: 100; background: rgba(2, 5, 12, .88); backdrop-filter: blur(6px); display: flex; flex-direction: column; padding: 16px; }
+.lightbox.hidden { display: none; } .lbbar { display: flex; align-items: center; gap: 14px; color: #dbe7ff; font-weight: 700; padding: 0 4px 10px; } .lbbar span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lbbar a { color: #9ec3ff; font-size: 13px; } .lbbar button { border: 0; background: rgba(255, 255, 255, .12); color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 22px; cursor: pointer; }
+.lbscroll { flex: 1; overflow: auto; border-radius: 12px; background: #0b1014; text-align: center; } .lbscroll img { max-width: 100%; display: block; margin: 0 auto; }
+.dtabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; } .dtabs button { border: 0; border-radius: 99px; padding: 7px 14px; font: inherit; font-weight: 700; font-size: 12.5px; cursor: pointer; background: rgba(14, 22, 44, .6); color: var(--ink); box-shadow: inset 0 0 0 1.5px #22304f; }
+.dtabs button.on { background: var(--blue-soft); box-shadow: inset 0 0 0 2px var(--blue); } .dtabs b { background: var(--blue); color: #fff; border-radius: 99px; padding: 1px 7px; font-size: 11px; margin-left: 4px; }
+.dt { width: 100%; border-collapse: collapse; font-size: 12.5px; } .dt th { text-align: left; color: var(--muted); font-weight: 700; padding: 6px 8px; } .dt td { padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+.dt tbody tr { cursor: pointer; } .dt tbody tr:hover { background: rgba(45, 123, 255, .08); } .dt tr.leak { background: var(--orange-soft); } .dt tr.blk td:first-child { box-shadow: inset 3px 0 var(--orange); }
+.dt .pth { display: block; color: var(--muted); font: 11px "JetBrains Mono", Consolas, monospace; overflow-wrap: anywhere; } .fl { font-style: normal; font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 99px; background: var(--orange-soft); color: #ffb277; white-space: nowrap; }
+.dpost { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; background: rgba(3, 6, 14, .6); font: 12px/1.5 "JetBrains Mono", Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.dcon { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow: auto; font: 12px/1.5 "JetBrains Mono", Consolas, monospace; } .dcon li { padding: 4px 8px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.dcon li i { font-style: normal; font-weight: 800; margin-right: 8px; color: var(--blue-glow); } .dcon li.error i, .dcon li.warning i { color: var(--orange); }
+#dtjs .js { margin-bottom: 10px; } #dtjs small { color: var(--muted); font-weight: 700; } #dtjs pre { margin: 4px 0 0; padding: 10px 12px; border-radius: 12px; background: rgba(3, 6, 14, .6); font: 12px/1.5 "JetBrains Mono", Consolas, monospace; overflow: auto; max-height: 220px; white-space: pre-wrap; overflow-wrap: anywhere; }
+#evidence li.limit { list-style: none; margin-left: -20px; padding-left: 26px; position: relative; color: #ffc48a; } #evidence li.limit::before { content: "!"; position: absolute; left: 6px; font-weight: 900; color: var(--orange); }
+:root[data-theme="light"] .desk { background: rgba(236, 242, 255, .85); box-shadow: inset 0 0 0 1px #d2dcf1; } :root[data-theme="light"] .desk.working { box-shadow: inset 0 0 0 1.5px var(--blue); }
+:root[data-theme="light"] .dpost, :root[data-theme="light"] #dtjs pre { background: #eef3ff; } :root[data-theme="light"] .dtabs button { background: #fff; box-shadow: inset 0 0 0 1.5px #c5d2ee; } :root[data-theme="light"] .dtabs button.on { background: var(--blue-soft); box-shadow: inset 0 0 0 2px var(--blue); }
+:root[data-theme="light"] .dt tr.leak { background: var(--orange-soft); } :root[data-theme="light"] .fl { color: #b24a00; } :root[data-theme="light"] #evidence li.limit { color: #9a3f00; }
+@media (max-width: 900px) { .desks { grid-template-columns: 1fr 1fr; } } @media (max-width: 600px) { .desks { grid-template-columns: 1fr; } }

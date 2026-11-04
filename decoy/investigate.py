@@ -29,6 +29,8 @@ def build_case(url: str, ev, v: dict) -> dict:
             "blocked": ev.blocked[:10], "redirects": ev.redirects[:10], "downloads": ev.downloads[:5],
             "scripts": ev.scripts[:6], "script_srcs": ev.script_srcs[:10], "hidden_orders": ev.hidden_orders[:2],
             "evidence_kinds": [e["kind"] for e in v.get("evidence", [])], "evidence": [e["text"] for e in v.get("evidence", [])][:10],
+            "endpoints": ev.endpoints[:25], "cookies": ev.cookies[:20], "console": ev.console[:25], "gates": sorted(ev.gates),
+            "lure": {"urgency": ev.urgency, "asked": sorted(ev.asked), "title": ev.last_title, "official": bool(ev.official)},
             "swarm": v.get("swarm", []), "memory_campaign": [m.get("host") for m in (v.get("memory") or {}).get("campaign", [])]}
 
 
@@ -122,6 +124,8 @@ def resolve(hosts: list[str]) -> dict[str, list[str]]:
 
 
 def rules_findings(role: str, case: dict) -> list[str]:
+    if role in ("endpoint", "cookies", "lure"):
+        return rules_findings2(role, case)
     if role == "network":
         ext = [h for h in case["hosts"] if h != case["start_host"]]
         out = [f"The page talked to {len(case['hosts'])} host(s)" + (f", {len(ext)} besides the link itself: {', '.join(ext[:4])}." if ext else ".")]
@@ -129,7 +133,7 @@ def rules_findings(role: str, case: dict) -> list[str]:
             out.append(f"{lk['host']} received the fake {', '.join(d.lower() for d in lk['data'])} typed into the page.")
         if case["blocked"]:
             out.append(f"{len(case['blocked'])} request(s) to internal or cloud-secret addresses were blocked by the sandbox.")
-        for r in case["redirects"][:2]:
+        for r in [x for x in case["redirects"] if urlsplit(x["from"]).hostname != urlsplit(x.get("to") or "").hostname][:2]:
             out.append(f"Redirect {r['status']}: {urlsplit(r['from']).hostname} → {urlsplit(r['to']).hostname or r['to'][:40]}.")
         return out
     if role == "script":
@@ -149,11 +153,50 @@ def rules_findings(role: str, case: dict) -> list[str]:
     return out or ["No infrastructure details beyond the domains in the indicator list were observable."]
 
 
+def rules_findings2(role: str, case: dict) -> list[str]:
+    if role == "endpoint":
+        eps = case.get("endpoints") or []
+        if not eps:
+            return ["The page made no background (API, beacon or form) requests."]
+        out = [f"{len(eps)} background request(s) found; {sum(1 for e in eps if e.get('leak'))} carried the fake data we typed."]
+        for e in eps:
+            if e.get("leak") or e.get("blocked"):
+                tag = "carries form data" if e.get("leak") else "was blocked by the sandbox"
+                out.append(f"{e['method']} {e['url'][:90]} {tag}" + (f" (payload shape: {e['post'][:60]})" if e.get('post') else "") + ".")
+        return out[:4]
+    if role == "cookies":
+        ck = case.get("cookies") or []
+        if not ck:
+            return ["The page set no cookies during the visit."]
+        weak = [c['name'] for c in ck if not c.get('secure') or not c.get('httpOnly')]
+        out = [f"{len(ck)} cookie(s) were set: {', '.join(c['name'] for c in ck[:5])}."]
+        if weak:
+            out.append(f"{len(weak)} lack the Secure or HttpOnly flag, so they are easier to steal or read from scripts.")
+        return out
+    lure = case.get("lure") or {}
+    out = []
+    if lure.get("urgency"):
+        out.append("The page uses urgency and fear (locked account, deadline) to rush the visitor.")
+    if lure.get("asked"):
+        out.append("It asks for " + " and ".join(a.lower() for a in lure["asked"]) + ".")
+    if "lookalike_domain" in case["evidence_kinds"]:
+        out.append("It borrows a trusted brand's name through a look-alike address.")
+    if case.get("gates"):
+        out.append("A " + " and a ".join(case["gates"]) + " step limited how far Decoy could follow it.")
+    return out or ["No pressure tactics or requests for sensitive data were seen."]
+
+
 ANALYSTS = [
     {"id": "network", "name": "Network analyst", "icon": "⌁",
      "system": "You are a network analyst. From <DATA> (requests, hosts, redirects, leaks, blocked probes) explain how data moved and where it went."},
     {"id": "script", "name": "Script reverse engineer", "icon": "‹/›",
      "system": "You are a malware reverse engineer. From <DATA> (page scripts) explain what the code does: what it reads, where it sends it, any obfuscation or redirects."},
+    {"id": "endpoint", "name": "Endpoint hunter", "icon": "⇄",
+     "system": "You are an API and endpoint analyst. From <DATA> (background requests with status and a redacted payload preview) list which endpoints the page calls, which carry form data, and what shape the payload has."},
+    {"id": "cookies", "name": "Cookie and tracker inspector", "icon": "◔",
+     "system": "You are a web privacy analyst. From <DATA> (cookies with flags, console messages) explain what is stored in the browser, what is weak, and any tracking."},
+    {"id": "lure", "name": "Lure analyst", "icon": "◎",
+     "system": "You are a social-engineering analyst. From <DATA> (page title, asked data, urgency, evidence) explain how the page tries to manipulate the visitor."},
     {"id": "infra", "name": "Infrastructure investigator", "icon": "◈",
      "system": "You are a threat-infrastructure investigator. From <DATA> (domains, resolved IPs, earlier scans, evidence) explain how the attacker's infrastructure is organised and whether it is part of a campaign."},
 ]
@@ -180,7 +223,8 @@ def analyst_run(a: dict, case: dict, budget: Budget, use_model: bool) -> dict:
     findings, by = fallback, "rules"
     if use_model and llm.available():
         try:
-            slice_ = {k: case[k] for k in {"network": ["hosts", "redirects", "leaks", "blocked", "downloads"], "script": ["scripts", "script_srcs", "hidden_orders"],
+            slice_ = {k: case[k] for k in {"network": ["hosts", "redirects", "leaks", "blocked", "downloads"], "script": ["scripts", "script_srcs", "hidden_orders", "console"],
+                                           "endpoint": ["endpoints", "hosts"], "cookies": ["cookies", "console"], "lure": ["lure", "evidence", "swarm"],
                                            "infra": ["start_host", "hosts", "redirects", "memory_campaign", "evidence"]}[a["id"]]}
             if a["id"] == "infra":
                 slice_["resolved"] = resolve(list(case["hosts"]))
@@ -257,10 +301,10 @@ def to_markdown(r: dict) -> str:
 def run_investigation(case: dict, emit, use_model: bool = True) -> dict:
     """The analyst team works in parallel, then the lead analyst compiles the report. Events stream to the page."""
     budget = Budget()
-    budget.max_calls = 5
+    budget.max_calls = 8
     emit({"type": "investigation", "phase": "start", "analysts": [{"id": a["id"], "name": a["name"], "icon": a["icon"]} for a in ANALYSTS]})
     results = []
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    with ThreadPoolExecutor(max_workers=6) as pool:
         futs = {a["id"]: pool.submit(analyst_run, a, case, budget, use_model) for a in ANALYSTS}
         for a in ANALYSTS:
             res = futs[a["id"]].result()
