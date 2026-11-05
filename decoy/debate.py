@@ -15,7 +15,7 @@ AREAS = {
     "check": {"lookalike_domain", "new_domain", "free_hosting", "no_https", "shortener", "raw_ip"},
     "tls": {"bad_cert", "fresh_cert"},
     "script": {"obfuscated_script", "hidden_ai_order"},
-    "endpoints": {"credentials_sent_elsewhere", "exfil_channel", "telemetry_leak", "internal_probe", "download", "credentials_collected"},
+    "endpoints": {"credentials_sent_elsewhere", "exfil_channel", "telemetry_leak", "form_third_party", "internal_probe", "download", "credentials_collected"},
     "lure": {"pressure", "card_on_lookalike", "parked_page", "thin_page", "interstitial"},
     "intel": {"campaign"},
     "cloak": {"cloaking", "visitor_difference", "redirect"},

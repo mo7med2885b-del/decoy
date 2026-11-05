@@ -17,6 +17,17 @@ EXFIL_CHANNELS = (("api.telegram.org", "a Telegram bot"), ("discord.com", "a Dis
                   ("script.google.com", "a Google Apps Script endpoint"), ("formspree.io", "a form-mail relay"), ("web3forms.com", "a form-mail relay"), ("api.emailjs.com", "an email relay"))
 
 
+# shared cloud backends: many unrelated sites (legitimate and not) use the same address, so it says nothing about who is behind a form
+SHARED_BACKENDS = (".amazonaws.com", ".cloudfunctions.net", ".azurewebsites.net", ".herokuapp.com",
+                   "formspree.io", "hsforms.com", "hsforms.net", "mailchimp.com", "list-manage.com", "typeform.com", "getform.io", "web3forms.com", "google.com", "googleapis.com")
+SENSITIVE = {"PASSWORD", "CARD", "CVV"}
+
+
+def is_shared_backend(host: str) -> bool:
+    h = (host or "").lower()
+    return any(h.endswith(s) or h == s.lstrip(".") for s in SHARED_BACKENDS)
+
+
 def is_telemetry(host: str) -> bool:
     h = (host or "").lower()
     return any(h == t or h.endswith("." + t) or (t.endswith(".") and t in h) for t in TELEMETRY)
@@ -161,6 +172,10 @@ class Evidence:
             what = ", ".join(LABELS.get(k, k.lower()) for k in sorted(kinds))
             if is_telemetry(dest):
                 items.append({"kind": "telemetry_leak", "weight": 12, "text": f"What was typed also reached an analytics or error-monitoring service ({dest}). That is common and not theft, but it means typed text can be recorded."})
+            elif site(dest) != start_site and not (set(kinds) & SENSITIVE) and is_shared_backend(dest):
+                # an email, name or phone sent to a shared form backend is what a normal newsletter or contact form does: a note, not theft
+                items.append({"kind": "form_third_party", "weight": 8,
+                              "text": f"The page's form sent the fake {what} to a shared form service ({dest}). Normal for newsletter and contact forms; no password or card was involved."})
             elif site(dest) != start_site:
                 items.append({"kind": "credentials_sent_elsewhere", "weight": 60,
                               "text": f"When we typed a FAKE {what}, the page secretly sent it to another server: {dest}."})

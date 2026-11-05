@@ -290,3 +290,13 @@ def test_swarm_debate_finds_contradictions_and_counts_votes():
     assert phases[0] == "share" and "challenge" in phases and "reply" in phases and phases[-1] == "consensus"
     assert out["votes"]["endpoints"] == "agree" and "drop-zone.test" in results["endpoints"]["findings"][0]  # corrected after the challenge, then votes with the verdict
     assert "orchestrator" in phases and "vote" in phases and out["rounds"] >= 1
+
+
+def test_email_to_shared_form_backend_is_a_note_but_a_password_is_theft():
+    def run(canary):
+        ev = Evidence("https://news.example.org/", [])
+        ev.add_state({"url": "https://news.example.org/", "title": "News", "page": {"visible_text": "Sign up " * 10}, "network": [
+            {"url": "https://abc123.execute-api.us-east-2.amazonaws.com/signup", "host": "abc123.execute-api.us-east-2.amazonaws.com", "method": "POST", "type": "fetch", "canary_sent": canary}]}, 0)
+        return {e["kind"] for e in ev.verdict()["evidence"]}
+    assert "credentials_sent_elsewhere" not in run(["EMAIL"]) and "form_third_party" in run(["EMAIL"])
+    assert "credentials_sent_elsewhere" in run(["EMAIL", "PASSWORD"])

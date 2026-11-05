@@ -23,7 +23,7 @@ from . import reputation
 from . import investigate, store
 from . import debate as debate_mod
 from . import swarm as swarm_mod
-from .verdict import Evidence, cloaking, is_telemetry, template_summary
+from .verdict import is_shared_backend, Evidence, cloaking, is_telemetry, template_summary
 
 MAX_ACTIONS = 6
 SUBMIT_WORDS = re.compile(r"sign|log ?in|continue|verify|confirm|next|submit|unlock|pay|claim|download|view|open|start", re.I)
@@ -340,7 +340,7 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
     ai_budget = Budget()
     ai_budget.max_calls = 5
     out: dict = {}
-    ctx_b = {"url": url, "host": host, "ev": ev, "visitors": visitors, "exfil_hosts": [g["host"] for g in v0["attacker_got"]], "scan_id": scan_id, "out": out,
+    ctx_b = {"url": url, "host": host, "ev": ev, "visitors": visitors, "exfil_hosts": [g["host"] for g in v0["attacker_got"] if not is_shared_backend(g["host"])], "scan_id": scan_id, "out": out,
              "budget": ai_budget, "use_model": use_model and env("DECOY_SWARM_AI", "1") == "1",
              "case": investigate.build_case(url, ev, v0, list(tracker.locs.values()))}
     b_ids = ("intel",) if official else swarm_mod.GROUP_B
