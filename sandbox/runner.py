@@ -96,8 +96,11 @@ CURSOR_JS = r"""
 
 
 def emit(obj):
-    sys.stdout.write(json.dumps(obj) + "\n")
-    sys.stdout.flush()
+    # Written in 16 KB pieces: under gVisor one big write to the pipe is cut at 64 KB and a large page never arrives.
+    s = json.dumps(obj) + "\n"
+    for i in range(0, len(s), 16384):
+        sys.stdout.write(s[i:i + 16384])
+        sys.stdout.flush()
 
 
 def is_private_host(host: str) -> bool:
@@ -137,7 +140,7 @@ class Runner:
         self.canary = msg.get("canary", {})
         demo_ip = msg.get("demo_ip")
         self.demo_suffix = msg.get("demo_suffix")  # e.g. ".test": our own fake sites only
-        args = ["--disable-dev-shm-usage", "--no-first-run", "--disable-extensions"]
+        args = ["--disable-dev-shm-usage", "--no-first-run", "--disable-extensions", "--disable-quic"]  # QUIC (UDP) stalls page loads inside gVisor
         if demo_ip and self.demo_suffix:
             if demo_ip == "host-gateway":
                 demo_ip = socket.gethostbyname("host.docker.internal")

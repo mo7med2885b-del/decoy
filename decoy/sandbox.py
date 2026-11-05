@@ -15,7 +15,7 @@ import uuid
 
 from .config import ROOT, env
 
-LIMITS = {"memory": "1g", "cpus": "1", "pids": 256, "tmpfs": "256m", "step_timeout_s": 25}
+LIMITS = {"memory": "1g", "cpus": "1", "pids": 256, "tmpfs": "256m", "step_timeout_s": 40}
 
 
 class SandboxError(RuntimeError):
