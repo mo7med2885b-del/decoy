@@ -288,4 +288,5 @@ def test_swarm_debate_finds_contradictions_and_counts_votes():
     out = debate.run_debate(results, ev, v, ctx, events.append)
     phases = [e["phase"] for e in events]
     assert phases[0] == "share" and "challenge" in phases and "reply" in phases and phases[-1] == "consensus"
-    assert out["votes"]["endpoints"] == "alarm" and "drop-zone.test" in results["endpoints"]["findings"][0]
+    assert out["votes"]["endpoints"] == "agree" and "drop-zone.test" in results["endpoints"]["findings"][0]  # corrected after the challenge, then votes with the verdict
+    assert "orchestrator" in phases and "vote" in phases and out["rounds"] >= 1
