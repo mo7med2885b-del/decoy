@@ -141,8 +141,8 @@ const WF = (() => {
   function syncEdges() {  // a line shows only when both of its nodes have appeared
     document.querySelectorAll('#wfSvg .we').forEach(p => { if (!p.dataset.e) return; const [a, b] = p.dataset.e.split('>'); p.style.opacity = (el[a] && el[b] && !el[a].classList.contains('ghost') && !el[b].classList.contains('ghost')) ? '' : '0'; });
   }
-  const HUES = {script: 262, endpoints: 200, privacy: 160, lure: 24, intel: 330, cloak: 48, check: 210, geo: 180, tls: 120, lead: 285, v_careless: 12, v_phone: 190, v_bot: 90};
-  const NAME = {lead: 'Review lead'};
+  const HUES = {script: 262, endpoints: 200, privacy: 160, lure: 24, intel: 330, cloak: 48, check: 210, geo: 180, tls: 120, lead: 285, orch: 42, v_careless: 12, v_phone: 190, v_bot: 90};
+  const NAME = {lead: 'Review lead', orch: 'Orchestrator'};
   const escH = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
   function say(who, text, o = {}) {  // one message in the agent chat room
     const list = $('crList'); if (!list) return null; list.querySelector('.cr-empty')?.remove();
@@ -246,24 +246,34 @@ const WF = (() => {
         const nm = a => escH(NAME[a] || (NODES[a] ? NODES[a][3] : a));
         if (ev.phase === 'share') {
           ['lure', 'intel', 'cloak'].forEach(a => flow(a, 'debate')); state('debate', 'active', ev.text); head('The agents are debating', true);
-          crq(() => say('lead', '', {cls: 'sys', tag: 'round 1 · share', html: `${escH(ev.text)}`}));
+          crq(() => say('orch', '', {cls: 'sys', tag: 'orchestrator joins', html: `${escH(ev.text)} The <b>orchestrator</b> (the most capable model) will read everything, question the agents, and call a vote.`}));
           Object.entries(ev.posts || {}).forEach(([a, f]) => crq(() => { flow(a, 'debate'); say(a, f, {cls: 'post', tag: 'posts finding'}); }, 520));
+        } else if (ev.phase === 'orchestrator') {
+          crq(() => { state('debate', 'active', 'round ' + ev.round);
+            say('orch', '', {cls: 'orch', tag: 'round ' + ev.round + ' · orchestrator', html: `${escH(ev.text)}<div class="cr-model">${escH(ev.model || 'rules')} · asks ${(ev.asks || []).length} agent(s)</div>`}); }, 900);
         } else if (ev.phase === 'challenge') {
-          const from = el[ev.with] && ev.with !== 'debate' ? ev.with : 'lead';
-          crq(() => { if (from !== 'lead') argue(from, ev.to, 'hot'); else argue('debate', ev.to, 'hot'); state('debate', 'active', 'challenge → ' + ev.name);
-            say(from, '', {cls: 'ask', tag: 'round 2 · cross-examination', html: `<div class="cr-duel">${av(from, 's')}<span class="cr-arrow hot">asks ➜</span>${av(ev.to, 's')}<b>${nm(ev.to)}</b></div><div class="cr-q">${escH(ev.text)}</div>`}); typing(ev.to); }, 900);
+          const from = el[ev.with] && ev.with !== 'debate' ? ev.with : 'orch';
+          crq(() => { argue(from === 'orch' ? 'debate' : from, ev.to, 'hot'); state('debate', 'active', 'question → ' + ev.name);
+            say(from, '', {cls: 'ask', tag: 'question', html: `<div class="cr-duel">${av(from, 's')}<span class="cr-arrow hot">asks ➜</span>${av(ev.to, 's')}<b>${nm(ev.to)}</b></div><div class="cr-q">${escH(ev.text)}</div>`}); typing(ev.to); }, 800);
         } else if (ev.phase === 'reply') {
           crq(() => { argue(ev.from, 'debate', ev.stance === 'revise' ? 'revise' : 'keep'); state(ev.from, ev.stance === 'revise' ? 'active' : 'done', (ev.stance === 'revise' ? 'revised: ' : 'kept: ') + (ev.revised || ev.text));
             const diff = ev.revised ? `<div class="cr-diff"><s>${escH(ev.was || '')}</s><span>${escH(ev.revised)}</span></div>` : '<div class="cr-ok">✓ re-checked the evidence, keeps its finding</div>';
-            say(ev.from, '', {cls: ev.stance === 'revise' ? 'revise' : 'keep', tag: ev.stance === 'revise' ? 'changes its mind' : 'stands by it', html: `${escH(ev.text)}${diff}`}); }, 900);
+            say(ev.from, '', {cls: ev.stance === 'revise' ? 'revise' : 'keep', tag: ev.stance === 'revise' ? 'changes its mind' : 'stands by it', html: `${escH(ev.text)}${diff}`}); }, 800);
+        } else if (ev.phase === 'proposal') {
+          crq(() => say('orch', '', {cls: 'sys proposal', tag: 'round ' + ev.round + ' · proposal', html: `<b>Vote on this:</b> ${escH(ev.text)}`}), 700);
+        } else if (ev.phase === 'vote') {
+          crq(() => { const lbl = {agree: 'agrees', neutral: 'nothing in its area', object: 'OBJECTS', abstain: 'abstains'}[ev.vote] || ev.vote;
+            const list = $('crList'); if (!list) return; list.querySelector('.cr-empty')?.remove(); list.querySelectorAll('.cr-typing').forEach(x => x.remove());
+            const m = document.createElement('div'); m.className = 'cr-ballot ' + ev.vote;
+            m.innerHTML = `${av(ev.from, 's')}<b>${nm(ev.from)}</b><span class="cr-pill ${ev.vote}">${lbl}</span><em>${escH(ev.text)}</em>`; list.appendChild(m); list.scrollTop = list.scrollHeight;
+            if (ev.vote === 'object' && el[ev.from]) el[ev.from].classList.add('bad'); }, 330);
         } else if (ev.phase === 'consensus') {
           crq(() => {
-            Object.entries(ev.votes || {}).forEach(([a, vt]) => { if (el[a] && vt === 'alarm') el[a].classList.add('bad'); });
-            state('debate', ev.dissent && ev.dissent.length ? 'bad' : 'done', ev.total ? ev.agree + '/' + ev.total + ' agree' : 'no votes');
             const vs = Object.entries(ev.votes || {}).filter(([, v]) => v !== 'abstain');
             const bar = vs.map(([a, v]) => `<i class="${v}" title="${nm(a)}: ${v}"></i>`).join('');
-            const chips = vs.map(([a, v]) => `<span class="cr-vote ${v}">${av(a, 's')}${nm(a)} · ${v === 'alarm' ? 'alarm' : v === 'concern' ? 'concern' : 'clear'}</span>`).join('');
-            say('lead', '', {cls: 'sys vote', tag: 'round 3 · vote', live: 'agreed', html: `<div class="cr-meter">${bar}</div><div class="cr-big">${ev.total ? (ev.dissent && ev.dissent.length ? ev.dissent.length + ' dissent' : 'No dissent') + ' · ' + ev.agree + ' of ' + ev.total + ' support the verdict' : 'No votes'}</div>${escH(ev.text || '')}<div class="cr-votes">${chips}</div>`});
+            const dis = ev.dissent && ev.dissent.length;
+            state('debate', dis ? 'bad' : 'done', (dis ? 'dissent' : 'agreed') + ' · ' + (ev.rounds || 1) + ' round(s)');
+            say('orch', '', {cls: 'sys vote', tag: 'final · ' + (ev.rounds || 1) + ' round(s)', live: dis ? 'dissent' : 'agreed', html: `<div class="cr-meter">${bar}</div><div class="cr-big">${dis ? ev.dissent.length + ' agent(s) object' : 'Agreement reached'} · ${ev.agree} agree, ${(ev.total || 0) - (ev.agree || 0) - (dis ? ev.dissent.length : 0)} neutral</div>${escH(ev.text || '')}`});
           }, 900);
         }
         break;

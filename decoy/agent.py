@@ -356,7 +356,9 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
     agents.shutdown(wait=False)
 
     v = ev.verdict()
-    ai_budget.max_calls = 9
+    ai_budget = Budget()  # the debate gets its own caps: at most 3 rounds, 18 model calls, 120 s
+    ai_budget.max_calls = 18
+    ctx_b["budget"] = ai_budget
     try:  # the swarm debates: share, challenge, reply, vote, consensus
         consensus = debate_mod.run_debate(agent_results, ev, v, ctx_b, emit)
     except Exception as e:

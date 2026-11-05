@@ -484,3 +484,16 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 
 .wf-stage { height: 1720px; } .wf-view { min-height: 1720px; }
 @media (max-width: 700px) { .wf-stage { height: 1720px; } .wf-view { min-height: 1720px; } }
+
+#debatecard { display: none !important; } /* the debate now lives in the canvas chat room */
+
+/* ---- v5: orchestrator + live votes ---- */
+.cr-msg.orch .cr-text { background: linear-gradient(135deg, rgba(255, 190, 60, .22), rgba(255, 122, 26, .10)); border-left: 3px solid #f0a020; font-weight: 600; }
+.cr-msg.orch .cr-av { background: linear-gradient(135deg, #f7b733, #e8590c); box-shadow: 0 0 0 3px rgba(247, 183, 51, .35); }
+.cr-model { margin-top: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: #b86e00; text-transform: uppercase; }
+.cr-msg.proposal .cr-text { border: 1px dashed #f0a020; background: rgba(255, 190, 60, .10); }
+.cr-ballot { display: flex; align-items: center; gap: 7px; padding: 4px 8px 4px 40px; font-size: 11.5px; animation: crIn .3s ease-out; }
+.cr-ballot b { font-size: 11.5px; flex: none; } .cr-ballot em { font-style: normal; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.cr-pill { font-size: 9.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; flex: none; background: rgba(120, 150, 210, .2); }
+.cr-pill.agree { background: rgba(61, 154, 89, .2); color: #2f8a4b; } .cr-pill.object { background: rgba(213, 72, 58, .18); color: #d5483a; } .cr-pill.neutral { background: rgba(120, 150, 210, .2); color: var(--muted); }
+.cr-meter i.agree { background: #3d9a59; } .cr-meter i.neutral { background: #9db3e0; } .cr-meter i.object { background: #d5483a; }

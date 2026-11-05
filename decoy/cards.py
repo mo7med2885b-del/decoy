@@ -24,9 +24,9 @@ def cards() -> dict:
                          "model": env("DECOY_VISION_MODEL") or env("DECOY_MODEL", "glm-5.3-flash"), "prompt": agent_mod.PLANNER_SYSTEM}
     out["v_phone"] = {"name": "Phone user", "kind": "code", "does": "An iPhone visitor in its own sealed browser. Follows a fixed script (open, look, fill the form, submit).", "model": None, "prompt": CODE_NOTE}
     out["v_bot"] = {"name": "Security bot", "kind": "code", "does": "Looks like a link scanner. If the page shows it something different from the laptop, that is cloaking.", "model": None, "prompt": CODE_NOTE}
-    out["debate"] = {"name": "Agent debate", "kind": "model", "does": "The agents share findings; code finds contradictions; a review lead (a second model) cross-examines; challenged agents answer; everyone votes. Revisions change wording, never the score.",
-                     "model": env("DECOY_MODEL_CRITIC", debate.CRITIC_MODEL) + " (review lead; fallback " + debate.CRITIC_FALLBACK + ")",
-                     "prompt": "REVIEW LEAD:\n" + debate.CRITIC_SYSTEM + "\n\nANSWERING AGENT:\n" + debate.REPLY_SYSTEM.format(name="<agent name>")}
+    out["debate"] = {"name": "Agent chat room", "kind": "model", "does": "The orchestrator (the most capable model in the swarm) reads every finding, cross-examines agents, and calls a vote; objections trigger another round (at most 3). Agents answer on small flash models. Code finds contradictions, counts the votes and owns the score: a debate can change wording, never the verdict.",
+                     "model": env("DECOY_MODEL_ORCH", debate.ORCH_MODEL) + " (orchestrator); agents: flash models",
+                     "prompt": "ORCHESTRATOR:\n" + debate.ORCH_SYSTEM + "\n\nANSWERING AGENT:\n" + debate.REPLY_SYSTEM.format(name="<agent name>")}
     out["summary"] = {"name": "Summary", "kind": "model", "does": "Writes the plain-words verdict from the facts only; code validates it.", "model": env("DECOY_MODEL", "glm-5.3-flash"), "prompt": agent_mod.SUMMARY_SYSTEM}
     out["analysts"] = {"name": "Analyst team", "kind": "model", "does": "Investigate mode: six analysts, each a different open model, write a report and tag ATT&CK techniques.",
                        "model": ", ".join(sorted({a["model"] for a in investigate.ANALYSTS})),
