@@ -28,6 +28,9 @@ def is_shared_backend(host: str) -> bool:
     return any(h.endswith(s) or h == s.lstrip(".") for s in SHARED_BACKENDS)
 
 
+PROVIDER_WARNING = re.compile(r"suspected phishing|phishing (site|warning|page)|deceptive site|dangerous site ahead|reported as (unsafe|phishing|deceptive)|site ahead contains", re.I)
+
+
 def is_telemetry(host: str) -> bool:
     h = (host or "").lower()
     return any(h == t or h.endswith("." + t) or (t.endswith(".") and t in h) for t in TELEMETRY)
@@ -218,6 +221,9 @@ class Evidence:
             short = any(h in SHORT_HOSTS or len(h) <= 9 for h in hops[:1]) and len(hops) > 1
             items.append({"kind": "redirect", "weight": 15 if short else 8,
                           "text": ("A link that hides its destination: " if short else "The link moved you through other sites: ") + " → ".join(hops[:5]) + "."})
+        if PROVIDER_WARNING.search(self.final_title or "") and not self.official:
+            items.append({"kind": "provider_warning", "weight": 40,
+                          "text": f"The page the visitors reached is a security service's own warning ('{self.final_title[:60]}'): a hosting or browser security provider already treats this site as phishing."})
         limits = []
         if reputation.INTERSTITIAL.search(self.final_title or ""):
             limits.append(f"The page stayed on a loading or bot-check screen ('{self.final_title[:50]}'), so Decoy did not see the real content.")

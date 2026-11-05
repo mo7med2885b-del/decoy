@@ -12,7 +12,7 @@ from .swarm import AGENTS
 
 # which evidence kinds each agent is responsible for (its "vote" comes from what the code scored in its area)
 AREAS = {
-    "check": {"lookalike_domain", "new_domain", "free_hosting", "no_https", "shortener", "raw_ip"},
+    "check": {"provider_warning", "lookalike_domain", "new_domain", "free_hosting", "no_https", "shortener", "raw_ip"},
     "tls": {"bad_cert", "fresh_cert"},
     "script": {"obfuscated_script", "hidden_ai_order"},
     "endpoints": {"credentials_sent_elsewhere", "exfil_channel", "telemetry_leak", "form_third_party", "internal_probe", "download", "credentials_collected"},

@@ -300,3 +300,10 @@ def test_email_to_shared_form_backend_is_a_note_but_a_password_is_theft():
         return {e["kind"] for e in ev.verdict()["evidence"]}
     assert "credentials_sent_elsewhere" not in run(["EMAIL"]) and "form_third_party" in run(["EMAIL"])
     assert "credentials_sent_elsewhere" in run(["EMAIL", "PASSWORD"])
+
+
+def test_security_provider_warning_page_is_flagged():
+    ev = Evidence("https://x.example.pages.dev/", [])
+    ev.add_state({"url": "https://x.example.pages.dev/", "title": "Suspected Phishing | Cloudflare", "page": {"visible_text": "This website has been reported"}, "network": []}, 0)
+    v = ev.verdict()
+    assert any(e["kind"] == "provider_warning" for e in v["evidence"]) and v["level"] in ("SUSPICIOUS", "DANGEROUS")

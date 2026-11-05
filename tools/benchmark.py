@@ -64,7 +64,9 @@ def report(path: str):
         print(f"\n{label}: {len(s)} scanned, {len(s) - len(ok)} not assessable (unreachable, error or bot-check), {len(ok)} assessed")
         print(f"  flagged {k}/{len(ok)} -> {name} {k / len(ok):.0%} (95% CI {lo:.0%}-{hi:.0%})" if ok else "  nothing assessable")
         if label == "phish" and ok:
-            dyn = sum(1 for r in ok if flagged(r) and r.get("static_only") is False)
+            pw = sum(1 for r in ok if flagged(r) and "provider_warning" in r["kinds"])
+            print(f"  {pw} of the detections came from a security provider's own warning page (for example Cloudflare 'Suspected Phishing'), not from Decoy's own sandbox behaviour")
+            dyn = sum(1 for r in ok if flagged(r) and r.get("static_only") is False and "provider_warning" not in r["kinds"])
             print(f"  of the detections, {dyn} needed behaviour seen in the sandbox (data leaks, exfiltration channel, cloaking, scripts...), {k - dyn} came from address/reputation signals alone")
         if label == "benign":
             for r in ok:
