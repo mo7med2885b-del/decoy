@@ -196,6 +196,12 @@ class Runner:
             self.downloads.append({"filename": dl.suggested_filename[:120], "error": str(e)[:120]})
 
     def _route(self, route):
+        try:
+            return self._route_inner(route)
+        except Exception:  # the page navigated or closed while we decided: the request is gone, nothing to do
+            return None
+
+    def _route_inner(self, route):
         req = route.request
         self.requests_seen += 1
         host = urlsplit(req.url).hostname or ""
@@ -282,7 +288,11 @@ class Runner:
             pass
         dls, self.downloads = self.downloads, []
         dlg, self.dialogs = self.dialogs, []
-        return {"ok": True, "url": self.page.url[:500], "title": (self.page.title() or "")[:150], "screenshot": shot, "full": full or shot,
+        try:
+            ttl = (self.page.title() or "")[:150]
+        except Exception:  # the page was navigating or closed under us: a title is not worth failing the step
+            ttl = ""
+        return {"ok": True, "url": self.page.url[:500], "title": ttl, "screenshot": shot, "full": full or shot,
                 "page": info, "network": net, "downloads": dls, "dialogs": dlg, "note": note, "redirects": self.redirects[:12], "console": con, "cookies": cookies}
 
     # ---- live frames + a visible cursor, so a person can watch the agent work ----

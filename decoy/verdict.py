@@ -182,9 +182,12 @@ class Evidence:
             elif site(dest) != start_site:
                 items.append({"kind": "credentials_sent_elsewhere", "weight": 60,
                               "text": f"When we typed a FAKE {what}, the page secretly sent it to another server: {dest}."})
-            else:
+            elif set(kinds) & SENSITIVE:
                 items.append({"kind": "credentials_collected", "weight": 15,
                               "text": f"The page collects a {what} on its own server ({dest})."})
+            else:
+                items.append({"kind": "credentials_collected", "weight": 3,
+                              "text": f"The page's own server received the fake {what} (normal for a search, sign-up or contact form)."})
         if self.blocked:
             targets = sorted({urlsplit(b["url"]).hostname or b["url"] for b in self.blocked})
             items.append({"kind": "internal_probe", "weight": 25,
@@ -195,7 +198,7 @@ class Evidence:
             low = name.lower()
             danger = low.endswith(DANGEROUS_EXT)
             double = bool(re.search(r"\.(pdf|doc|docx|xls|xlsx|jpg|png|txt)\.[a-z0-9]{2,4}$", low))
-            w = 35 + (15 if danger else 0) + (10 if double else 0)
+            w = (35 + (15 if danger else 0) + (10 if double else 0)) if (danger or double) else 10  # a plain download (an ISO, a PDF) on its own is a note
             text = f"The page pushed a download: '{name}'" + (" (a program disguised as a document)" if double and danger else
                                                               " (a program or archive)" if danger else "") + \
                    ". It stayed inside the sandbox and was destroyed with it."

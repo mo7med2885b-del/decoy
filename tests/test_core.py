@@ -307,3 +307,12 @@ def test_security_provider_warning_page_is_flagged():
     ev.add_state({"url": "https://x.example.pages.dev/", "title": "Suspected Phishing | Cloudflare", "page": {"visible_text": "This website has been reported"}, "network": []}, 0)
     v = ev.verdict()
     assert any(e["kind"] == "provider_warning" for e in v["evidence"]) and v["level"] in ("SUSPICIOUS", "DANGEROUS")
+
+
+def test_plain_download_and_plain_form_are_notes_not_alarms():
+    ev = Evidence("https://os.example.org/", [])
+    ev.add_state({"url": "https://os.example.org/", "title": "Get the OS", "page": {"visible_text": "Download " * 20}, "network": [
+        {"url": "https://os.example.org/search", "host": "os.example.org", "method": "POST", "type": "fetch", "canary_sent": ["EMAIL"]}],
+        "downloads": [{"filename": "debian-12.iso", "sha256": "ab"}]}, 0)
+    v = ev.verdict()
+    assert v["score"] < 25 and v["level"] not in ("SUSPICIOUS", "DANGEROUS")
