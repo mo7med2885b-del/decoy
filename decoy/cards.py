@@ -27,6 +27,8 @@ def cards() -> dict:
     out["debate"] = {"name": "Agent chat room", "kind": "model", "does": "The orchestrator (the most capable model in the swarm) reads every finding, cross-examines agents, and calls a vote; objections trigger another round (at most 3). Agents answer on small flash models. Code finds contradictions, counts the votes and owns the score: a debate can change wording, never the verdict.",
                      "model": env("DECOY_MODEL_ORCH", debate.ORCH_MODEL) + " (orchestrator); agents: flash models",
                      "prompt": "ORCHESTRATOR:\n" + debate.ORCH_SYSTEM + "\n\nANSWERING AGENT:\n" + debate.REPLY_SYSTEM.format(name="<agent name>")}
+    out["orch"] = {"name": "Orchestrator", "kind": "model", "does": "The most capable model in the swarm. Every agent reports to it; it cross-examines, calls the vote and starts another round if anyone objects. Code owns the score.",
+                    "model": env("DECOY_MODEL_ORCH", debate.ORCH_MODEL), "prompt": debate.ORCH_SYSTEM}
     out["summary"] = {"name": "Summary", "kind": "model", "does": "Writes the plain-words verdict from the facts only; code validates it.", "model": env("DECOY_MODEL", "glm-5.3-flash"), "prompt": agent_mod.SUMMARY_SYSTEM}
     out["analysts"] = {"name": "Analyst team", "kind": "model", "does": "Investigate mode: six analysts, each a different open model, write a report and tag ATT&CK techniques.",
                        "model": ", ".join(sorted({a["model"] for a in investigate.ANALYSTS})),

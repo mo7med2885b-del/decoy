@@ -497,3 +497,32 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .cr-pill { font-size: 9.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; flex: none; background: rgba(120, 150, 210, .2); }
 .cr-pill.agree { background: rgba(61, 154, 89, .2); color: #2f8a4b; } .cr-pill.object { background: rgba(213, 72, 58, .18); color: #d5483a; } .cr-pill.neutral { background: rgba(120, 150, 210, .2); color: var(--muted); }
 .cr-meter i.agree { background: #3d9a59; } .cr-meter i.neutral { background: #9db3e0; } .cr-meter i.object { background: #d5483a; }
+
+/* ---- v6: the orchestrator hub ---- */
+.wf-stage { height: 1900px; } .wf-view { min-height: 1900px; }
+@media (max-width: 700px) { .wf-stage { height: 1900px; } .wf-view { min-height: 1900px; } }
+.wn.orch { width: 230px; border: 2px solid #f0a020; background: linear-gradient(135deg, rgba(255, 190, 60, .22), rgba(255, 255, 255, .92)); box-shadow: 0 0 0 5px rgba(247, 183, 51, .18), 0 10px 30px rgba(232, 89, 12, .25); text-align: center; }
+:root:not([data-theme="light"]) .wn.orch { background: linear-gradient(135deg, rgba(255, 190, 60, .22), rgba(10, 18, 38, .85)); }
+.wn.orch b { justify-content: center; font-size: 15px; } .wn.orch b i { background: linear-gradient(135deg, #f7b733, #e8590c); color: #fff; width: 28px; height: 28px; } .wn.orch small, .wn.orch .live { margin-left: 0; }
+.wn.orch b i svg { width: 17px !important; height: 17px !important; }
+.we.orch { stroke: #f0a020; stroke-width: 1.6; stroke-dasharray: 3 6; opacity: .55; }
+.we.orch.on { stroke-width: 2.8; opacity: 1; animation: wfdash .5s linear infinite; filter: drop-shadow(0 0 5px rgba(240, 160, 32, .8)); } .we.orch.on.bad { stroke: #d5483a; }
+.we.orch.done { stroke: #f0a020; opacity: .8; }
+
+/* ---- v7: right-click menu, stronger hub ---- */
+.wf-menu { position: fixed; z-index: 60; min-width: 210px; padding: 6px; border-radius: 14px; background: #fff; color: #0b1530; box-shadow: 0 14px 40px rgba(11, 21, 48, .3), 0 0 0 1.5px rgba(45, 123, 255, .35); animation: bubIn .15s ease-out; }
+:root:not([data-theme="light"]) .wf-menu { background: #0f1a33; color: #e9f0ff; }
+.wf-menu .mh { padding: 6px 10px 6px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.wf-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: inherit; font: inherit; font-size: 13.5px; font-weight: 600; padding: 9px 10px; border-radius: 9px; cursor: pointer; }
+.wf-menu button:hover { background: rgba(45, 123, 255, .14); }
+.wn.orch b i { background: linear-gradient(135deg, #f7b733, #e8590c) !important; color: #fff !important; }
+.we.orch { stroke-width: 2; opacity: .85; }
+
+/* ---- v8: the page margins warn too (left and right hazard strips) ---- */
+html::before, html::after { content: ""; position: fixed; top: 0; bottom: 0; width: 0; z-index: 40; pointer-events: none; transition: width .5s ease, opacity .5s; opacity: 0; }
+html::before { left: 0; } html::after { right: 0; }
+html:has(body[data-risk="danger"])::before, html:has(body[data-risk="danger"])::after { width: 16px; opacity: 1; background: repeating-linear-gradient(135deg, #d5231a 0 12px, #1a0707 12px 24px); box-shadow: 0 0 28px rgba(213, 35, 26, .7); animation: hazard 1.4s linear infinite; }
+html:has(body[data-risk="warn"])::before, html:has(body[data-risk="warn"])::after { width: 12px; opacity: 1; background: repeating-linear-gradient(135deg, #f2a413 0 12px, #1f1503 12px 24px); box-shadow: 0 0 22px rgba(242, 164, 19, .55); }
+@keyframes hazard { to { background-position: 0 34px; } }
+body[data-risk="danger"] .riskbar { background: repeating-linear-gradient(135deg, #3a0a0a 0 12px, #0d0505 12px 24px); }
+@media (max-width: 700px) { html:has(body[data-risk="danger"])::before, html:has(body[data-risk="danger"])::after { width: 8px; } html:has(body[data-risk="warn"])::before, html:has(body[data-risk="warn"])::after { width: 6px; } }

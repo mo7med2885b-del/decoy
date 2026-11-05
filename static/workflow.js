@@ -21,16 +21,18 @@ const WF = (() => {
     lure: [17, 750, '🧠', 'Lure analyst', 'MiniMax · manipulation', 'model'],
     intel: [50, 750, '🧠', 'Threat intel', 'memory · campaigns', 'code'],
     cloak: [83, 750, '🧠', 'Cloak detector', 'compares visitors', 'code'],
-    debate: [50, 1110, '🧠', 'Agent chat room', 'share · challenge · vote', 'chat'],
-    judge: [50, 1450, '⚖', 'Evidence judge', 'code · score by rules', 'code'],
-    analysts: [17, 1560, '🧠', 'Analyst team', 'Investigate mode', 'model'],
-    summary: [50, 1560, '🧠', 'Summary', 'GLM · plain words', 'model'],
-    human: [83, 1560, '✓', 'Your decision', 'block · safe · dismiss', 'human'],
+    orch: [50, 880, '🧠', 'Orchestrator', 'glm-5.3 · the most capable model', 'orch'],
+    debate: [50, 1250, '🧠', 'Agent chat room', 'share · challenge · vote', 'chat'],
+    judge: [50, 1640, '⚖', 'Evidence judge', 'code · score by rules', 'code'],
+    analysts: [17, 1750, '🧠', 'Analyst team', 'Investigate mode', 'model'],
+    summary: [50, 1750, '🧠', 'Summary', 'GLM · plain words', 'model'],
+    human: [83, 1750, '✓', 'Your decision', 'block · safe · dismiss', 'human'],
   };
   const EDGES = [['control', 'link', 'model'], ['link', 'check'], ['link', 'geo'], ['link', 'tls'], ['check', 'sandbox'], ['sandbox', 'v_careless', 'model'], ['sandbox', 'v_phone'], ['sandbox', 'v_bot'],
     ['v_careless', 'net'], ['v_careless', 'destroy'], ['v_phone', 'destroy'], ['v_bot', 'destroy'],
     ['destroy', 'script', 'model'], ['destroy', 'endpoints', 'model'], ['destroy', 'privacy', 'model'], ['script', 'lure', 'model'], ['endpoints', 'intel'], ['privacy', 'cloak'],
-    ['lure', 'debate'], ['intel', 'debate'], ['cloak', 'debate'], ['debate', 'judge', 'model'], ['judge', 'analysts', 'model'], ['judge', 'summary', 'model'], ['analysts', 'human', 'model'], ['summary', 'human']];
+    ['orch', 'debate', 'orch'], ['debate', 'judge', 'model'], ['judge', 'analysts', 'model'], ['judge', 'summary', 'model'], ['analysts', 'human', 'model'], ['summary', 'human']];
+  EDGES.push(['orch', 'check', 'orch'], ['orch', 'geo', 'orch'], ['orch', 'tls', 'orch'], ['orch', 'script', 'orch'], ['orch', 'endpoints', 'orch'], ['orch', 'privacy', 'orch'], ['orch', 'lure', 'orch'], ['orch', 'intel', 'orch'], ['orch', 'cloak', 'orch']);
   const PARENT = {check: 'link', geo: 'link', tls: 'link', script: 'destroy', endpoints: 'destroy', privacy: 'destroy', lure: 'script', intel: 'endpoints', cloak: 'privacy'};
   const VISITOR = {careless: 'v_careless', phone: 'v_phone', bot: 'v_bot'};
   const INFO = {
@@ -51,6 +53,7 @@ const WF = (() => {
     lure: 'How the page manipulates the visitor: urgency, fear, brand borrowing, what it asks for. MiniMax assists.',
     intel: 'Threat memory (SQLite): earlier scans of this site and campaigns linked through the same data-collection server.',
     cloak: 'Compares what the laptop, the phone and the security bot were each shown. A login form hidden from the bot is cloaking.',
+    orch: 'The orchestrator is the most capable model in the swarm (glm-5.3). Every agent reports to it. It reads all findings, questions agents whose findings clash, calls the vote and starts another round if anyone objects (at most three). The agents themselves run on small flash models. It never changes the score: code owns that.',
     debate: 'The agents post their findings on one board. A review lead (another open model) challenges contradictions and gaps, the challenged agents answer (keep or revise), then every agent votes. Revisions change what an agent says, never the score.',
     judge: 'Plain code scores all the evidence. No model ever sets the verdict.',
     analysts: 'Investigate mode: the specialists above plus the network and infrastructure analysts, and a lead analyst, write the incident report.',
@@ -114,14 +117,25 @@ const WF = (() => {
       const x = Math.min(w - 40, Math.max(40, ox + dx)), y = Math.min(h - 25, Math.max(25, oy + dy));
       d.style.left = (x / w * 100) + '%'; d.style.top = y + 'px'; draw();
     });
-    d.addEventListener('pointerup', e => { d.releasePointerCapture(e.pointerId); d.classList.remove('dragging'); if (!moved) detail(id); });
+    d.addEventListener('pointerup', e => { d.releasePointerCapture(e.pointerId); d.classList.remove('dragging'); if (!moved && e.pointerType === 'touch') detail(id); });  // a mouse opens details through the right-click menu; a finger taps
+    d.addEventListener('contextmenu', e => { e.preventDefault(); menu(id, e.clientX, e.clientY); });
+  }
+  function menu(id, x, y) {  // right-click menu on a node
+    document.querySelectorAll('.wf-menu').forEach(m => m.remove());
+    const m = document.createElement('div'); m.className = 'wf-menu';
+    m.innerHTML = `<div class="mh">${escH(NODES[id][3])}</div><button type="button" data-a="detail">See details</button><button type="button" data-a="prompt">Show model and system prompt</button>`;
+    m.style.left = Math.min(x, innerWidth - 230) + 'px'; m.style.top = Math.min(y, innerHeight - 130) + 'px'; document.body.appendChild(m);
+    const close = () => { m.remove(); removeEventListener('pointerdown', away, true); removeEventListener('keydown', esc, true); };
+    const away = ev => { if (!m.contains(ev.target)) close(); }, esc = ev => { if (ev.key === 'Escape') close(); };
+    setTimeout(() => { addEventListener('pointerdown', away, true); addEventListener('keydown', esc, true); }, 0);
+    m.querySelectorAll('button').forEach(b => b.onclick = () => { close(); detail(id); if (b.dataset.a === 'prompt') setTimeout(() => $('wfdetail').querySelector('.sysprompt')?.scrollIntoView({block: 'nearest'}), 50); });
   }
   let CARDS = null;
   fetch('/api/agents').then(r => r.json()).then(c => { CARDS = c; if (selected) detail(selected); }).catch(() => {});
   function detail(id) {
     selected = id; Object.values(el).forEach(n => n.classList.toggle('sel', n.dataset.id === id));
     const n = NODES[id], h = hist[id].slice(-8).reverse(), box = $('wfdetail');
-    const kind = {core: 'control plane', code: 'plain code', model: 'Vultr AI model', chat: 'Vultr AI models', human: 'human'}[n[5]] || n[5];
+    const kind = {core: 'control plane', code: 'plain code', model: 'Vultr AI model', chat: 'Vultr AI models', orch: 'orchestrator · most capable model', human: 'human'}[n[5]] || n[5];
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
     box.innerHTML = `<div class="dhead"><b>${esc(n[3])}</b><span class="dk ${n[5]}">${esc(kind)}</span><button type="button" class="dx" id="wfdx" aria-label="Close">×</button></div>`
       + `<p>${esc(INFO[id] || n[4])}</p>`
@@ -241,19 +255,19 @@ const WF = (() => {
       }
       case 'debate': {
         const node = {v_careless: 'v_careless', v_phone: 'v_phone', v_bot: 'v_bot', evidence: 'debate'};
-        reveal('debate');
+        reveal(['orch', 'debate']);
         const av = (a, cls = '') => `<span class="cr-av ${cls}" style="--h:${HUES[a] ?? 220}">${iconHtml('🧠')}</span>`;
         const nm = a => escH(NAME[a] || (NODES[a] ? NODES[a][3] : a));
         if (ev.phase === 'share') {
-          ['lure', 'intel', 'cloak'].forEach(a => flow(a, 'debate')); state('debate', 'active', ev.text); head('The agents are debating', true);
+          Object.keys(ev.posts || {}).forEach(a => flow(a, 'orch', false, true)); state('orch', 'active', 'reading ' + (ev.agents || []).length + ' findings'); state('debate', 'active', ev.text); head('The agents are debating', true);
           crq(() => say('orch', '', {cls: 'sys', tag: 'orchestrator joins', html: `${escH(ev.text)} The <b>orchestrator</b> (the most capable model) will read everything, question the agents, and call a vote.`}));
-          Object.entries(ev.posts || {}).forEach(([a, f]) => crq(() => { flow(a, 'debate'); say(a, f, {cls: 'post', tag: 'posts finding'}); }, 520));
+          Object.entries(ev.posts || {}).forEach(([a, f]) => crq(() => { flow('orch', a, false, true); say(a, f, {cls: 'post', tag: 'posts finding'}); }, 520));
         } else if (ev.phase === 'orchestrator') {
-          crq(() => { state('debate', 'active', 'round ' + ev.round);
+          crq(() => { state('orch', 'active', 'round ' + ev.round + ': questioning ' + (ev.asks || []).length + ' agent(s)'); state('debate', 'active', 'round ' + ev.round);
             say('orch', '', {cls: 'orch', tag: 'round ' + ev.round + ' · orchestrator', html: `${escH(ev.text)}<div class="cr-model">${escH(ev.model || 'rules')} · asks ${(ev.asks || []).length} agent(s)</div>`}); }, 900);
         } else if (ev.phase === 'challenge') {
           const from = el[ev.with] && ev.with !== 'debate' ? ev.with : 'orch';
-          crq(() => { argue(from === 'orch' ? 'debate' : from, ev.to, 'hot'); state('debate', 'active', 'question → ' + ev.name);
+          crq(() => { if (from === 'orch') flow('orch', ev.to, true); else argue(from, ev.to, 'hot'); state('debate', 'active', 'question → ' + ev.name);
             say(from, '', {cls: 'ask', tag: 'question', html: `<div class="cr-duel">${av(from, 's')}<span class="cr-arrow hot">asks ➜</span>${av(ev.to, 's')}<b>${nm(ev.to)}</b></div><div class="cr-q">${escH(ev.text)}</div>`}); typing(ev.to); }, 800);
         } else if (ev.phase === 'reply') {
           crq(() => { argue(ev.from, 'debate', ev.stance === 'revise' ? 'revise' : 'keep'); state(ev.from, ev.stance === 'revise' ? 'active' : 'done', (ev.stance === 'revise' ? 'revised: ' : 'kept: ') + (ev.revised || ev.text));
@@ -266,13 +280,13 @@ const WF = (() => {
             const list = $('crList'); if (!list) return; list.querySelector('.cr-empty')?.remove(); list.querySelectorAll('.cr-typing').forEach(x => x.remove());
             const m = document.createElement('div'); m.className = 'cr-ballot ' + ev.vote;
             m.innerHTML = `${av(ev.from, 's')}<b>${nm(ev.from)}</b><span class="cr-pill ${ev.vote}">${lbl}</span><em>${escH(ev.text)}</em>`; list.appendChild(m); list.scrollTop = list.scrollHeight;
-            if (ev.vote === 'object' && el[ev.from]) el[ev.from].classList.add('bad'); }, 330);
+            light('orch', ev.from, ev.vote === 'object'); if (ev.vote === 'object' && el[ev.from]) el[ev.from].classList.add('bad'); }, 330);
         } else if (ev.phase === 'consensus') {
           crq(() => {
             const vs = Object.entries(ev.votes || {}).filter(([, v]) => v !== 'abstain');
             const bar = vs.map(([a, v]) => `<i class="${v}" title="${nm(a)}: ${v}"></i>`).join('');
             const dis = ev.dissent && ev.dissent.length;
-            state('debate', dis ? 'bad' : 'done', (dis ? 'dissent' : 'agreed') + ' · ' + (ev.rounds || 1) + ' round(s)');
+            state('debate', dis ? 'bad' : 'done', (dis ? 'dissent' : 'agreed') + ' · ' + (ev.rounds || 1) + ' round(s)'); state('orch', dis ? 'bad' : 'done', (dis ? 'dissent recorded' : 'agreement reached') + ' after ' + (ev.rounds || 1) + ' round(s)');
             say('orch', '', {cls: 'sys vote', tag: 'final · ' + (ev.rounds || 1) + ' round(s)', live: dis ? 'dissent' : 'agreed', html: `<div class="cr-meter">${bar}</div><div class="cr-big">${dis ? ev.dissent.length + ' agent(s) object' : 'Agreement reached'} · ${ev.agree} agree, ${(ev.total || 0) - (ev.agree || 0) - (dis ? ev.dissent.length : 0)} neutral</div>${escH(ev.text || '')}`});
           }, 900);
         }
