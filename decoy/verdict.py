@@ -198,7 +198,9 @@ class Evidence:
             low = name.lower()
             danger = low.endswith(DANGEROUS_EXT)
             double = bool(re.search(r"\.(pdf|doc|docx|xls|xlsx|jpg|png|txt)\.[a-z0-9]{2,4}$", low))
-            w = (35 + (15 if danger else 0) + (10 if double else 0)) if (danger or double) else 10  # a plain download (an ISO, a PDF) on its own is a note
+            program = low.endswith((".exe", ".scr", ".msi", ".bat", ".cmd", ".js", ".vbs", ".ps1", ".jar", ".apk", ".lnk", ".hta", ".docm", ".xlsm"))
+            # a program or a disguised document is an alarm; an archive or disk image (an ISO, a ZIP) on its own is a note, many honest sites offer those
+            w = (35 + (15 if program else 0) + (10 if double else 0)) if (program or double) else (18 if danger else 10)
             text = f"The page pushed a download: '{name}'" + (" (a program disguised as a document)" if double and danger else
                                                               " (a program or archive)" if danger else "") + \
                    ". It stayed inside the sandbox and was destroyed with it."
