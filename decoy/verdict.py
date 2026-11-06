@@ -224,7 +224,7 @@ class Evidence:
                     chain.append(h)
         if len({site(h) for h in chain or self.hosts_seen}) > 1:
             hops = chain or self.hosts_seen
-            short = any(h in SHORT_HOSTS or len(h) <= 9 for h in hops[:1]) and len(hops) > 1
+            short = any(h in SHORT_HOSTS for h in hops[:1]) and len(hops) > 1
             items.append({"kind": "redirect", "weight": 15 if short else 8,
                           "text": ("A link that hides its destination: " if short else "The link moved you through other sites: ") + " → ".join(hops[:5]) + "."})
         if PROVIDER_WARNING.search(self.final_title or "") and not self.official:
@@ -257,6 +257,12 @@ class Evidence:
                 if (e["host"] == dom or e["host"].endswith("." + dom)) and e.get("method") == "POST" and not any(i["kind"] == "exfil_channel" for i in items):
                     items.append({"kind": "exfil_channel", "weight": 30, "text": f"The page sends data to {label} ({e['host']}). Phishing kits use these to collect what victims type."})
         score = min(100, sum(i["weight"] for i in items))
+        # weak reputation hints alone (a young domain, a redirect, a bot-check screen, a hidden text block) never make a link suspicious:
+        # something about what the page DID or about its address must back them up
+        backing = {"credentials_sent_elsewhere", "credentials_collected", "exfil_channel", "lookalike_domain", "cloaking", "bad_cert", "download", "internal_probe",
+                   "free_hosting", "shortener", "raw_ip", "provider_warning", "card_on_lookalike", "obfuscated_script", "telemetry_leak", "no_https", "parked_page"}
+        if score >= 25 and not any(i["kind"] in backing and i["weight"] >= 12 for i in items):
+            score = 24
         level = "DANGEROUS" if score >= 60 else "SUSPICIOUS" if score >= 25 else \
             "LOOKS SAFE" if self.official and score < 10 else "NO THREAT FOUND"
         items = sorted((i for i in items if i["weight"] > 0), key=lambda i: -i["weight"])
