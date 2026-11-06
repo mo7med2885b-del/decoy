@@ -656,3 +656,9 @@ body[data-stage="run"] .hero-h { font-size: 30px; }
 /* the green light lives in the sealed-browser bar */
 #ailive { padding: 5px 12px; font-size: 12px; margin-right: 8px; white-space: nowrap; }
 #ailive i { width: 9px; height: 9px; }
+
+/* ---- v21: no muddy blue-to-orange blends on buttons: solid blue, orange or black ---- */
+.rebar-new { background: #2d6bff !important; color: #fff; } .rebar-new:hover { background: #05070d !important; }
+.dtabs .aitab { background: rgba(45, 107, 255, .14) !important; border-color: rgba(45, 107, 255, .45) !important; color: inherit; }
+.dtabs .aitab.on { background: #2d6bff !important; color: #fff !important; }
+.aisum { background: rgba(45, 107, 255, .10) !important; }
