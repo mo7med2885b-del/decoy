@@ -298,7 +298,7 @@ async function start() {
     const r = await fetch('/api/scan', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url, mode})});
     const j = await r.json();
     if (!r.ok) { $('err').textContent = j.detail || 'Could not start.'; $('go').disabled = false; return; }
-    scanId = j.id; reset(); geoSeen = false;
+    scanId = j.id; reset(); geoSeen = false; $('addr').textContent = url.slice(0, 100); $('screenmsg').textContent = 'Opening the link in a fresh sealed browser…';
     document.body.dataset.stage = 'run'; document.body.dataset.first = 'globe'; $('rebarurl').textContent = url.slice(0, 90);  // the world view leads when the link's server can be located
     setTimeout(() => { if (!geoSeen) document.body.dataset.first = 'browser'; }, 2200);  // otherwise the sealed browser leads, as soon as it streams
     ($('globecard') || $('run')).scrollIntoView({behavior: 'smooth', block: 'start'});

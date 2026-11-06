@@ -187,7 +187,7 @@ def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, 
         demo = env("DECOY_DEMO", "1") == "1"
         state = sb.send({"cmd": "open", "url": url, "canary": canary, "persona": persona,
                          "demo_ip": ("127.0.0.1" if sb.mode == "local" else "host-gateway") if demo else None,
-                         "demo_suffix": DEMO_SUFFIX if demo else None}, timeout=75)
+                         "demo_suffix": DEMO_SUFFIX if demo else None}, timeout=75, on_frame=on_frame)
         for step in range(max_actions + 1):
             if not state.get("ok"):
                 raise SandboxError(state.get("error", "sandbox step failed"))

@@ -164,7 +164,12 @@ class Runner:
         self.page = ctx.new_page()
         self._watch(self.page)
         try:
-            self.page.goto(msg["url"], wait_until="load", timeout=15000)
+            self.page.goto(msg["url"], wait_until="domcontentloaded", timeout=12000)
+            self.frame()  # the first picture goes out the moment the page has a skeleton, not after everything loaded
+            try:
+                self.page.wait_for_load_state("load", timeout=4000)
+            except Exception:
+                pass
         except Exception as e:  # a dead or slow page is still evidence
             return self.state(note=f"page did not finish loading: {str(e)[:120]}")
         return self.state()
