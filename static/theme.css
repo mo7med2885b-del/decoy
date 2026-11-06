@@ -648,3 +648,7 @@ body[data-stage="run"] #run > .grid3 { order: 9; }
 #orb { position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .9; }
 body[data-stage="run"] #orb { display: none; }
 .hero-h, .spill { text-shadow: none; }
+
+/* ---- v20: smaller headline, bigger orb ---- */
+.hero-h { font-size: clamp(34px, 4.4vw, 72px); line-height: 1; letter-spacing: -0.04em; }
+body[data-stage="run"] .hero-h { font-size: 30px; }

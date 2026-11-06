@@ -7,7 +7,7 @@
   function draw() {
     if (document.body.dataset.stage === 'run') { raf = requestAnimationFrame(draw); return; }
     g.clearRect(0, 0, W, H);
-    const R = Math.min(W * 0.2, H * 0.4), cx = W / 2, cy = H * 0.5, tilt = -0.35, ct = Math.cos(tilt), st = Math.sin(tilt);
+    const R = Math.min(W * 0.3, H * 0.62), cx = W / 2, cy = H * 0.5, tilt = -0.35, ct = Math.cos(tilt), st = Math.sin(tilt);
     const P = (lat, lon) => { const x = Math.cos(lat) * Math.sin(lon + rot), y = Math.sin(lat), z = Math.cos(lat) * Math.cos(lon + rot); const y2 = y * ct - z * st, z2 = y * st + z * ct; return [cx + x * R, cy - y2 * R, z2, x]; };
     g.lineWidth = Math.max(1, W / 1400); g.shadowBlur = W / 120;
     const line = (pts) => { for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i]; if (a[2] < -0.02 && b[2] < -0.02) continue; const k = (a[3] + 1) / 2; const front = a[2] > 0 ? 0.75 : 0.22;
