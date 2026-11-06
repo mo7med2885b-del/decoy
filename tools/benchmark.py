@@ -87,6 +87,19 @@ def report(path: str):
         if g:
             print(f"{label}: median score {st.median(r['score'] for r in g):g}, median scan time {st.median(r['seconds'] for r in g):g}s, "
                   f"median score of flagged {st.median([r['score'] for r in g if flagged(r)] or [0]):g}")
+    # "Needs a human look" is a warning: Decoy noticed something. It counts as a catch on phishing AND as a false alarm on safe sites (same rule both ways).
+    warned = lambda r: r["level"] in ("SUSPICIOUS", "DANGEROUS", "NEEDS A LOOK")
+    print("\nAny warning (SUSPICIOUS, DANGEROUS or NEEDS A LOOK):")
+    for label, name in (("phish", "caught"), ("benign", "false alarms")):
+        g = [r for r in rs if r["label"] == label and assessable(r)]
+        k = sum(1 for r in g if warned(r))
+        lo, hi = wilson(k, len(g))
+        if g:
+            print(f"  {label}: {name} {k}/{len(g)} = {k / len(g):.0%} (95% CI {lo:.0%}-{hi:.0%}); of these, needs-a-look only: {sum(1 for r in g if r['level'] == 'NEEDS A LOOK')}")
+    ph = [r for r in rs if r["label"] == "phish" and assessable(r)]; be = [r for r in rs if r["label"] == "benign" and assessable(r)]
+    ok = sum(1 for r in ph if warned(r)) + sum(1 for r in be if not warned(r))
+    if ph or be:
+        print(f"  overall accuracy (warning = unsafe): {ok}/{len(ph) + len(be)} = {ok / (len(ph) + len(be)):.0%}")
     print("not assessable counts:", {l: sum(1 for r in rs if r["label"] == l and not assessable(r)) for l in ("phish", "benign")})
 
 
