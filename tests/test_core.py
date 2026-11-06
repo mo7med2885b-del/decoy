@@ -391,3 +391,17 @@ def test_needs_a_look_when_a_bot_check_hides_the_page_and_allow_list_wins(tmp_pa
     store.save("a1", "https://bad.test/", {"level": "DANGEROUS", "score": 70, "evidence": [], "attacker_got": [], "summary": "x", "swarm": [], "exfil_geo": []}, path=db)
     store.decide("a1", "allow", "mine", path=db)
     assert store.decision_for("bad.test", path=db)["decision"] == "allow" and "bad.test" not in store.blocklist(True, path=db)
+
+
+def test_malware_warning_page_and_gone_page_on_a_scammy_address_need_a_look():
+    ev = Evidence("https://xyz-123-abc.pages.dev/", [])
+    ev.add_state({"url": "https://xyz-123-abc.pages.dev/", "title": "Suspected Malware | Cloudflare", "page": {"visible_text": "warning"}, "network": []}, 0)
+    assert any(e["kind"] == "provider_warning" for e in ev.verdict()["evidence"])
+    ev2 = Evidence("https://qtz-15-159-xjn39-bdf88.pages.dev/", [])
+    ev2.address_score = 40
+    ev2.add_state({"url": "https://qtz-15-159-xjn39-bdf88.pages.dev/", "title": "This app isn't live", "page": {"visible_text": "x"}, "network": []}, 0)
+    assert ev2.verdict()["level"] in ("NEEDS A LOOK", "SUSPICIOUS")
+    ev3 = Evidence("https://example.org/", [])
+    ev3.address_score = 0
+    ev3.add_state({"url": "https://example.org/", "title": "Page not found", "page": {"visible_text": "x"}, "network": []}, 0)
+    assert ev3.verdict()["level"] == "NO THREAT FOUND"

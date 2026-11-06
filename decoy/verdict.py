@@ -28,7 +28,7 @@ def is_shared_backend(host: str) -> bool:
     return any(h.endswith(s) or h == s.lstrip(".") for s in SHARED_BACKENDS)
 
 
-PROVIDER_WARNING = re.compile(r"suspected phishing|phishing (site|warning|page)|deceptive site|dangerous site ahead|reported as (unsafe|phishing|deceptive)|site ahead contains", re.I)
+PROVIDER_WARNING = re.compile(r"suspected (phishing|malware|fraud)|phishing (site|warning|page)|malware (site|warning|page|detected)|deceptive (site|website)|dangerous site ahead|reported as (unsafe|phishing|deceptive|malicious)|site ahead contains|this (site|page|website) (has been|was) (blocked|reported|flagged)|harmful (site|website)|unsafe (site|website)", re.I)
 
 
 IDENTITY_PROVIDERS = ("accounts.google.com", "login.microsoftonline.com", "login.live.com", "appleid.apple.com", "github.com", "auth0.com", "okta.com", "login.amd.com", "discord.com",
@@ -292,6 +292,12 @@ class Evidence:
         # the evidence conflicts: Decoy could not see the page (a bot check blocked it) or the address looks risky while the behaviour looked clean.
         # Saying "safe" or "suspicious" would be a guess, so a person is asked to look.
         blind = any("bot check" in x or "bot-check" in x for x in limits) and not self.official and 5 <= score < 60
+        # the page is gone or empty, but the address itself looks like a throwaway scam address: Decoy cannot see anything to judge, and says so
+        gone = re.compile(r"(?i)not found|isn.t live|no longer (available|exists)|doesn.t exist|suspended|expired|404|deleted|has been removed|this (site|page) can.t be reached|nothing here")
+        empty = (gone.search(self.final_title or "") or any(i["kind"] in ("thin_page", "parked_page") for i in items) or self.max_text < 40) and not self.leaks and not self.official
+        if level == "NO THREAT FOUND" and empty and getattr(self, "address_score", 0) >= 20:
+            limits.append("The page is gone, empty or taken down, so there was nothing to judge, but the address itself looks like a throwaway scam address.")
+            level = "NEEDS A LOOK"
         if level == "NO THREAT FOUND" and not self.official and (blind or getattr(self, "address_score", 0) >= 60):
             level = "NEEDS A LOOK"
         items = sorted((i for i in items if i["weight"] > 0), key=lambda i: -i["weight"])
