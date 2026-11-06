@@ -31,6 +31,15 @@ def is_shared_backend(host: str) -> bool:
 PROVIDER_WARNING = re.compile(r"suspected phishing|phishing (site|warning|page)|deceptive site|dangerous site ahead|reported as (unsafe|phishing|deceptive)|site ahead contains", re.I)
 
 
+IDENTITY_PROVIDERS = ("accounts.google.com", "login.microsoftonline.com", "login.live.com", "appleid.apple.com", "github.com", "auth0.com", "okta.com", "login.amd.com", "discord.com",
+                      "login.salesforce.com", "id.atlassian.com", "slack.com", "linkedin.com", "facebook.com", "twitter.com", "x.com")
+
+
+def is_identity_provider(host: str) -> bool:
+    h = (host or "").lower()
+    return any(h == p or h.endswith("." + p) for p in IDENTITY_PROVIDERS)
+
+
 def is_telemetry(host: str) -> bool:
     h = (host or "").lower()
     return any(h == t or h.endswith("." + t) or (t.endswith(".") and t in h) for t in TELEMETRY)
@@ -175,6 +184,8 @@ class Evidence:
             what = ", ".join(LABELS.get(k, k.lower()) for k in sorted(kinds))
             if is_telemetry(dest):
                 items.append({"kind": "telemetry_leak", "weight": 12, "text": f"What was typed also reached an analytics or error-monitoring service ({dest}). That is common and not theft, but it means typed text can be recorded."})
+            elif site(dest) != start_site and is_identity_provider(dest):
+                items.append({"kind": "sso_login", "weight": 5, "text": f"A sign-in button sent the visitor to a known sign-in service ({dest}). That is how \"Sign in with ...\" works, not theft."})
             elif site(dest) != start_site and not (set(kinds) & SENSITIVE):
                 # an email, name or phone sent to another server, with no password or card: what newsletter, contact and sign-up forms normally do
                 shared = is_shared_backend(dest)

@@ -643,3 +643,8 @@ body[data-stage="run"][data-risk="idle"] .ailive { display: inline-flex; }
 body[data-stage="run"] #run > * { order: 2; }
 body[data-stage="run"] #run > #verdict { order: 0; }
 body[data-stage="run"] #run > .grid3 { order: 9; }
+
+/* ---- v19: the wireframe orb sits behind the headline ---- */
+#orb { position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .9; }
+body[data-stage="run"] #orb { display: none; }
+.hero-h, .spill { text-shadow: none; }
