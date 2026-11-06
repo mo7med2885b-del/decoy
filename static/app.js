@@ -104,7 +104,8 @@ async function refreshThreats() {
   try {
     const rows = await (await fetch('/api/threats?demo=1')).json();
     $('threatcard').classList.toggle('hidden', !rows.length);
-    $('thbody').innerHTML = rows.slice(0, 10).map(r => {
+    const seenH = new Set(); const uniq = rows.filter(r => !seenH.has(r.host) && seenH.add(r.host));  // one line per site, the latest
+    $('thbody').innerHTML = uniq.slice(0, 8).map(r => {
       const geo = r.exfil_geo || [];
       const dest = geo.length ? geo.map(g => `${flag(g.code)} <b>${esc(g.host)}</b><span class="pth">${esc([g.city, g.code].filter(Boolean).join(', '))}${g.simulated ? ' (simulated)' : ''}${g.org ? ' · ' + esc(g.org) : ''}</span>`).join('<br>') : '<span class="small">no data sent away</span>';
       return `<tr><td><b>${esc(r.host)}</b>${r.cloaking ? '<span class="fl bad">cloaked</span>' : ''}</td><td><i class="${levelCls(r.level)} lvl">${esc(LEVEL_TXT[r.level] || r.level)}</i></td><td>${dest}</td><td class="small">${ago(r.at)}</td></tr>`;

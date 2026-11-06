@@ -570,3 +570,19 @@ body[data-stage="run"] .hero .spill { height: 58px; } body[data-stage="run"] .he
 
 /* the step bar is gone (kept in the DOM for the code that updates it) */
 .steps, #steps { display: none !important; }
+
+/* ---- v11: blue-and-orange mesh gradient behind the hero; feed and history sit right under the globe when idle ---- */
+.hero { position: relative; isolation: isolate; overflow: hidden; border-radius: 0 0 40px 40px; }
+.hero::before, .hero::after { content: ""; position: absolute; z-index: -1; pointer-events: none; border-radius: 50%; filter: blur(70px); opacity: .85; }
+.hero::before { width: 62%; height: 120%; left: -12%; top: -30%; background: radial-gradient(circle at 40% 40%, #2d6bff 0%, rgba(45, 107, 255, .55) 38%, transparent 70%); animation: meshA 16s ease-in-out infinite alternate; }
+.hero::after { width: 58%; height: 110%; right: -10%; bottom: -35%; background: radial-gradient(circle at 60% 60%, #ff7a1a 0%, rgba(255, 122, 26, .5) 40%, transparent 70%); animation: meshB 19s ease-in-out infinite alternate; }
+.hero > * { position: relative; z-index: 1; }
+.hero-h { background: linear-gradient(100deg, #0b1530 0%, #0b1530 55%, #1b3fa8 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero-h b { -webkit-text-fill-color: #f26a0a; }
+@keyframes meshA { from { transform: translate(0, 0) scale(1); } to { transform: translate(14%, 10%) scale(1.15); } }
+@keyframes meshB { from { transform: translate(0, 0) scale(1.05); } to { transform: translate(-16%, -8%) scale(.92); } }
+:root:not([data-theme="light"]) .hero-h { background: linear-gradient(100deg, #ffffff 0%, #dbe7ff 60%, #ffb277 100%); -webkit-background-clip: text; background-clip: text; }
+body[data-stage="run"] .hero::before, body[data-stage="run"] .hero::after { opacity: .5; }
+#threatcard { order: 2; } #histcard { order: 3; }
+body[data-stage="run"] #threatcard { order: 5; } body[data-stage="run"] #histcard { order: 6; }
+body[data-stage="run"][data-first="browser"] #run { order: 0; }
