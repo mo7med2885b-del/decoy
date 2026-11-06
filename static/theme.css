@@ -652,3 +652,7 @@ body[data-stage="run"] #orb { display: none; }
 /* ---- v20: smaller headline, bigger orb ---- */
 .hero-h { font-size: clamp(34px, 4.4vw, 72px); line-height: 1; letter-spacing: -0.04em; }
 body[data-stage="run"] .hero-h { font-size: 30px; }
+
+/* the green light lives in the sealed-browser bar */
+#ailive { padding: 5px 12px; font-size: 12px; margin-right: 8px; white-space: nowrap; }
+#ailive i { width: 9px; height: 9px; }
