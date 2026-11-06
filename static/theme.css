@@ -548,3 +548,25 @@ body[data-stage="run"] .hero { padding: 14px 20px 10px; gap: 10px; } body[data-s
 body[data-stage="run"] .hero .spill { height: 58px; } body[data-stage="run"] .hero-sub, body[data-stage="run"] .hero .examples, body[data-stage="run"] .hero .modes { display: none; }
 .left { display: grid; } #globecard { order: 1; } #run { order: 2; } body[data-first="browser"] #globecard { order: 3; }
 @media (max-width: 700px) { .spill { height: 62px; padding-left: 18px; } .spill input { font-size: 17px; } .pill-go { width: 46px; height: 46px; } .hero-sub { font-size: 15px; } }
+
+/* ---- v10: depth chooser after the send button ---- */
+.hero .hidden-modes { display: none !important; }
+.depth { width: min(820px, 94%); padding: 18px; border-radius: 26px; background: #fff; color: #0b1530; box-shadow: 0 24px 70px rgba(31, 99, 240, .25), 0 0 0 2px rgba(31, 99, 240, .16); animation: depthIn .25s ease-out; text-align: left; }
+:root:not([data-theme="light"]) .depth { background: #0f1a33; color: #e9f0ff; box-shadow: 0 24px 70px rgba(0, 0, 0, .6), 0 0 0 2px rgba(91, 155, 255, .35); }
+@keyframes depthIn { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+.depth-h { font-size: 13px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #56658a; margin: 0 4px 12px; }
+.depth-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.opt { text-align: left; border: 2px solid #d2dcf1; background: #f4f7ff; color: inherit; font: inherit; border-radius: 20px; padding: 18px 20px; cursor: pointer; display: grid; gap: 6px; align-content: start; transition: border-color .15s, transform .15s, box-shadow .15s; }
+:root:not([data-theme="light"]) .opt { background: #131f3b; border-color: #25324f; }
+.opt:hover, .opt:focus-visible { border-color: #2d6bff; transform: translateY(-2px); box-shadow: 0 12px 30px rgba(45, 107, 255, .22); outline: 0; }
+.opt.adv:hover, .opt.adv:focus-visible { border-color: #f26a0a; box-shadow: 0 12px 30px rgba(242, 106, 10, .22); }
+.opt-t { font-size: 20px; font-weight: 800; letter-spacing: -.02em; } .opt-t i { font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 3px 9px; border-radius: 99px; background: rgba(242, 106, 10, .14); color: #d9590a; margin-left: 6px; vertical-align: middle; }
+.opt-s { font-size: 15px; color: #56658a; font-weight: 600; }
+.opt .more { font-size: 14px; line-height: 1.45; color: #3a4a6e; max-height: 0; opacity: 0; overflow: hidden; transition: max-height .25s ease, opacity .25s ease, margin .25s; }
+:root:not([data-theme="light"]) .opt .more { color: #b9c8ea; }
+.opt:hover .more, .opt:focus-visible .more { max-height: 140px; opacity: 1; margin-top: 6px; }
+@media (hover: none) { .opt .more { max-height: 140px; opacity: 1; margin-top: 6px; } }
+@media (max-width: 700px) { .depth-opts { grid-template-columns: 1fr; } }
+
+/* the step bar is gone (kept in the DOM for the code that updates it) */
+.steps, #steps { display: none !important; }

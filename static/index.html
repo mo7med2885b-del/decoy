@@ -44,8 +44,22 @@
         <input id="url" type="text" placeholder="Paste a link from an email, WhatsApp or text" autocomplete="off" spellcheck="false">
         <button class="pill-go" type="submit" id="go" aria-label="Open it safely"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
       </form>
-      <p class="hero-sub">Opened in a throwaway browser on a Vultr server, never on your device. <button type="button" class="deeper" id="deeper">Need a deeper look? Investigate like an analyst →</button></p>
-      <div class="modes" id="modes" role="tablist" aria-label="Mode"><button type="button" data-mode="simple" class="on"><b>Simple check</b><small>a clear yes or no for everyone</small></button><button type="button" data-mode="investigate"><b>Investigate</b><small>a team of analysts writes an incident report</small></button></div>
+      <div class="depth hidden" id="depth" role="dialog" aria-label="How deep should Decoy go?">
+        <div class="depth-h">How deep should Decoy go?</div>
+        <div class="depth-opts">
+          <button type="button" class="opt" data-mode="simple">
+            <span class="opt-t">Normal investigation</span>
+            <span class="opt-s">A clear verdict in plain words</span>
+            <span class="more">Three sealed visitors (laptop, phone, security bot) open the link, type fake data and watch where it goes. You get the verdict, the proof, the country the stolen data would reach and a block-list. About a cent.</span>
+          </button>
+          <button type="button" class="opt adv" data-mode="investigate">
+            <span class="opt-t">Advanced investigation <i>swarm</i></span>
+            <span class="opt-s">Everything in Normal, plus an analyst report</span>
+            <span class="more">Adds the full multi-agent analysis: six specialist analysts on different open models read the evidence and a lead writes an incident report with indicators (domains, IPs, hashes), suggested attack techniques and recommended actions. A few cents more.</span>
+          </button>
+        </div>
+      </div>
+      <div class="modes hidden-modes" id="modes" role="tablist" aria-label="Mode"><button type="button" data-mode="simple" class="on"><b>Simple check</b><small>a clear yes or no for everyone</small></button><button type="button" data-mode="investigate"><b>Investigate</b><small>a team of analysts writes an incident report</small></button></div>
 
       <div class="examples"><span class="small">Test links (fake sites we host):</span><div class="chipset" id="examples"></div></div>
 

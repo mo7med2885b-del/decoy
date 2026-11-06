@@ -229,7 +229,17 @@ async function init() {
       $('examples').appendChild(b);
     }
   } catch (e) {}
-  $('form').onsubmit = e => { e.preventDefault(); start(); };
+  $('form').onsubmit = e => {  // the send button asks how deep to go
+    e.preventDefault();
+    if (!$('url').value.trim()) { $('err').textContent = 'Paste a link first.'; return; }
+    $('err').textContent = ''; $('depth').classList.remove('hidden'); $('depth').scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  };
+  document.querySelectorAll('#depth .opt').forEach(o => o.onclick = () => {
+    mode = o.dataset.mode; document.querySelectorAll('#modes button').forEach(x => x.classList.toggle('on', x.dataset.mode === mode));
+    $('depth').classList.add('hidden'); start();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') $('depth').classList.add('hidden'); });
+  $('url').addEventListener('input', () => $('depth').classList.add('hidden'));
   document.querySelectorAll('#modes button').forEach(b => b.onclick = () => { mode = b.dataset.mode; document.querySelectorAll('#modes button').forEach(x => x.classList.toggle('on', x === b)); });
   $('invbtn').onclick = investigate;
   $('theme').onclick = () => {
@@ -463,4 +473,3 @@ async function decide(d) {
 
 init();
 
-document.addEventListener('DOMContentLoaded', () => { const d = document.getElementById('deeper'); if (d) d.onclick = () => { const b = document.querySelector('#modes button[data-mode=investigate]'); if (b) b.click(); document.getElementById('url').focus(); }; });
