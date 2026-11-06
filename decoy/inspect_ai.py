@@ -102,10 +102,18 @@ def analyze(data: dict, budget: Budget | None = None) -> dict:
                "console": [str(c.get("text"))[:160] for c in (data.get("con") or [])[:6] if isinstance(c, dict)],
                "cookie_names": [str(c.get("name"))[:40] for c in (data.get("ck") or [])[:10] if isinstance(c, dict)],
                "script_starts": [str(s)[:120] for s in (data.get("js") or [])[:5]]}
-    try:
-        p = llm.parse_json(llm.chat(budget or Budget(), SYSTEM, "<FACTS>\n" + json.dumps({k: v for k, v in facts.items() if k != "top_hosts"}) + "\n</FACTS>\n<SAMPLES>\n" + json.dumps(samples)[:3500] + "\n</SAMPLES>",
-                                    max_tokens=900)) or {}
-    except Exception:
+    bud = budget or Budget()
+    user = "<FACTS>\n" + json.dumps({k: v for k, v in facts.items() if k != "top_hosts"}) + "\n</FACTS>\n<SAMPLES>\n" + json.dumps(samples)[:3500] + "\n</SAMPLES>"
+    p, used = {}, None
+    for m in (None, "deepseek-v4.1-flash-1017", "qwen3.8-flash-next"):  # a small model sometimes answers empty: try another one
+        try:
+            p = llm.parse_json(llm.chat(bud, SYSTEM, user, max_tokens=1500, model=m)) or {}
+        except Exception:
+            p = {}
+        if p.get("summary"):
+            used = m or llm.model_name()
+            break
+    if not p:
         return out
     summary = _one(p.get("summary"), allowed, 420)
     clean_notes = []
@@ -118,5 +126,5 @@ def analyze(data: dict, budget: Budget | None = None) -> dict:
         # code never lets the model soften a warning that the rules found
         if any(x["level"] == "warn" for x in notes) and not any(x["level"] == "warn" for x in clean_notes):
             clean_notes = [x for x in notes if x["level"] == "warn"] + clean_notes
-        out.update(summary=summary, notes=clean_notes[:6], by=llm.model_name())
+        out.update(summary=summary, notes=clean_notes[:6], by=used or llm.model_name())
     return out
