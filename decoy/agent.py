@@ -25,7 +25,7 @@ from . import debate as debate_mod
 from . import swarm as swarm_mod
 from .verdict import is_shared_backend, Evidence, cloaking, is_telemetry, template_summary
 
-MAX_ACTIONS = 6
+MAX_ACTIONS = 4
 SUBMIT_WORDS = re.compile(r"sign|log ?in|continue|verify|confirm|next|submit|unlock|pay|claim|download|view|open|start", re.I)
 
 PLANNER_SYSTEM = """You are the explorer agent inside Decoy, a sealed sandbox browser that tests suspicious links.
@@ -310,7 +310,7 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
                       live_frame if lead_visitor else None, 6 if lead_visitor else 3, tracker)
         if not lead_visitor and res["error"] and not res["first_shot"] and budget.time_left() > 20:
             evs[p["id"]] = Evidence(url, signals)
-            res = explore(p, url, scan_id, out_dir, evs[p["id"]], scout_emit(p), budget, use_model, canaries[p["id"]], None, 3, tracker)
+            res = explore(p, url, scan_id, out_dir, evs[p["id"]], scout_emit(p), budget, use_model, canaries[p["id"]], None, 2, tracker)
             res["retried"] = True
         return res
 

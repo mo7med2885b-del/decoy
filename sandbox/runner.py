@@ -129,6 +129,7 @@ class Runner:
         self.canary = {}
         self.demo_suffix = None
         self.requests_seen = 0
+        self.lead = True
         self.redirects = []
         self.console = []
         self.status = {}
@@ -138,6 +139,7 @@ class Runner:
     # ---- setup -------------------------------------------------------------
     def open(self, msg):
         self.canary = msg.get("canary", {})
+        self.lead = bool((msg.get("persona") or {}).get("lead", True))
         demo_ip = msg.get("demo_ip")
         self.demo_suffix = msg.get("demo_suffix")  # e.g. ".test": our own fake sites only
         args = ["--disable-dev-shm-usage", "--no-first-run", "--disable-extensions", "--disable-quic"]  # QUIC (UDP) stalls page loads inside gVisor
@@ -241,7 +243,7 @@ class Runner:
     # ---- observation -------------------------------------------------------
     def state(self, note=None):
         self.page.wait_for_timeout(400)  # lets the browser deliver events (time.sleep would not)
-        for _ in range(6):  # bot-check and loading screens often finish by themselves: give the real page a few seconds
+        for _ in range(3):  # bot-check and loading screens often finish by themselves: give the real page a few seconds
             try:
                 title = self.page.title() or ""
                 n = self.page.evaluate("((document.body && document.body.innerText) || '').length")
@@ -251,9 +253,9 @@ class Runner:
                 pass
             self.page.wait_for_timeout(1000)
         info = {}
-        for _ in range(4):  # the page may still be navigating (scripts redirect after a submit)
+        for _ in range(2):  # the page may still be navigating (scripts redirect after a submit)
             try:
-                self.page.wait_for_load_state("load", timeout=5000)
+                self.page.wait_for_load_state("load", timeout=3000)
             except Exception:
                 pass
             try:
@@ -270,8 +272,10 @@ class Runner:
             shot = base64.b64encode(self.page.screenshot(type="jpeg", quality=62)).decode()
         except Exception:
             shot = None
-        full = None  # the whole page, not only what fits the window (capped so a never-ending page cannot flood us)
+        full = None  # the whole page, only for the laptop visitor (the extra screenshots are the slowest step under gVisor)
         try:
+            if not self.lead:
+                raise RuntimeError('skip')
             vp = self.page.viewport_size or VIEW
             height = int(self.page.evaluate("Math.min(document.documentElement.scrollHeight, 6000)"))
             if height > vp["height"] + 40:
