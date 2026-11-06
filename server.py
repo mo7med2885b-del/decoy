@@ -67,6 +67,18 @@ def index():
     return FileResponse(ROOT / "static" / "index.html", headers={"Cache-Control": "no-store"})
 
 
+@app.get("/api/geo")
+def early_geo(url: str, request: Request):
+    """Where the link's server is, answered at once (before the scan leaves the queue) so the globe can lead. Public addresses only."""
+    from urllib.parse import urlsplit
+    from decoy import geo as geo_mod
+    rate_limit(request, "geo", 120)
+    u = urlsplit(url if "://" in url else "http://" + url)
+    if u.scheme not in ("http", "https") or not u.hostname:
+        return {"origin": geo_mod.origin(), "loc": None}
+    return {"origin": geo_mod.origin(), "loc": geo_mod.locate(u.hostname)}
+
+
 @app.get("/api/agents")
 def agent_cards():
     from decoy import cards

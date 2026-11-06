@@ -316,3 +316,12 @@ def test_plain_download_and_plain_form_are_notes_not_alarms():
         "downloads": [{"filename": "debian-12.iso", "sha256": "ab"}]}, 0)
     v = ev.verdict()
     assert v["score"] < 25 and v["level"] not in ("SUSPICIOUS", "DANGEROUS")
+
+
+def test_early_geo_endpoint_answers_without_a_scan():
+    from fastapi.testclient import TestClient
+    import server
+    c = TestClient(server.app)
+    r = c.get("/api/geo", params={"url": "http://cloaked-promo.test:8601/"}).json()
+    assert r["origin"]["label"].startswith("Vultr") and r["loc"]["simulated"] is True
+    assert c.get("/api/geo", params={"url": "ftp://x.example/"}).json()["loc"] is None

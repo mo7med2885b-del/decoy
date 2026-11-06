@@ -526,3 +526,25 @@ html:has(body[data-risk="warn"])::before, html:has(body[data-risk="warn"])::afte
 @keyframes hazard { to { background-position: 0 34px; } }
 body[data-risk="danger"] .riskbar { background: repeating-linear-gradient(135deg, #3a0a0a 0 12px, #0d0505 12px 24px); }
 @media (max-width: 700px) { html:has(body[data-risk="danger"])::before, html:has(body[data-risk="danger"])::after { width: 8px; } html:has(body[data-risk="warn"])::before, html:has(body[data-risk="warn"])::after { width: 6px; } }
+
+/* ---- v9: hero start screen (big question, one search pill) ---- */
+.hero { text-align: center; padding: clamp(36px, 7vh, 84px) 20px 26px; display: grid; justify-items: center; gap: 22px; background: none !important; box-shadow: none !important; border: 0 !important; }
+.hero-h { font-size: clamp(44px, 7.4vw, 112px); font-weight: 800; letter-spacing: -0.045em; line-height: .96; font-family: Inter, system-ui, sans-serif; margin: 0; }
+.hero-h span { display: block; }
+.hero-h b { color: var(--orange); font-weight: 800; margin-right: .04em; }
+.spill { display: flex; align-items: center; gap: 12px; width: min(760px, 94%); height: 76px; padding: 0 12px 0 28px; border-radius: 99px; background: #fff; color: #0b1530; box-shadow: 0 18px 50px rgba(31, 99, 240, .22), 0 0 0 2px rgba(31, 99, 240, .18); }
+:root:not([data-theme="light"]) .spill { background: #fff; color: #0b1530; box-shadow: 0 18px 60px rgba(0, 0, 0, .55), 0 0 0 2px rgba(91, 155, 255, .35); }
+.pill-ic { width: 28px; height: 28px; flex: none; color: #3d4c6e; }
+.spill input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 22px; color: #0b1530; height: 100%; }
+.spill input::placeholder { color: #7c89a8; }
+.pill-go { flex: none; width: 54px; height: 54px; border-radius: 50%; border: 0; cursor: pointer; display: grid; place-items: center; color: #fff; background: var(--blue-glow, #2d6bff); transition: transform .15s, background .15s; }
+.pill-go:hover { transform: scale(1.06); } .pill-go:disabled { opacity: .5; cursor: progress; } .pill-go svg { width: 26px; height: 26px; }
+.hero-sub { margin: 0; max-width: 760px; font-size: 18px; color: var(--muted); }
+.deeper { border: 0; background: none; color: var(--ink); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 5px; cursor: pointer; display: block; margin: 8px auto 0; }
+.hero .modes { display: inline-flex; gap: 8px; margin: 0; } .hero .modes button { padding: 10px 18px; border-radius: 99px; } .hero .modes button small { display: none; }
+.hero .examples { justify-content: center; }
+/* after the link is sent the hero shrinks to a bar and the live view takes over */
+body[data-stage="run"] .hero { padding: 14px 20px 10px; gap: 10px; } body[data-stage="run"] .hero-h { font-size: 30px; letter-spacing: -.03em; } body[data-stage="run"] .hero-h span { display: inline; margin-left: .3em; }
+body[data-stage="run"] .hero .spill { height: 58px; } body[data-stage="run"] .hero-sub, body[data-stage="run"] .hero .examples, body[data-stage="run"] .hero .modes { display: none; }
+.left { display: grid; } #globecard { order: 1; } #run { order: 2; } body[data-first="browser"] #globecard { order: 3; }
+@media (max-width: 700px) { .spill { height: 62px; padding-left: 18px; } .spill input { font-size: 17px; } .pill-go { width: 46px; height: 46px; } .hero-sub { font-size: 15px; } }

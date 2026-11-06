@@ -37,23 +37,25 @@
       <i class="steps-fill" id="stepsFill"></i>
     </ol>
 
+    <section class="intake hero" id="intake">
+      <h1 class="hero-h">Not sure about that link?<span><b>/</b>Let Decoy click first.</span></h1>
+      <form id="form" class="spill">
+        <svg class="pill-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="url" type="text" placeholder="Paste a link from an email, WhatsApp or text" autocomplete="off" spellcheck="false">
+        <button class="pill-go" type="submit" id="go" aria-label="Open it safely"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+      </form>
+      <p class="hero-sub">Opened in a throwaway browser on a Vultr server, never on your device. <button type="button" class="deeper" id="deeper">Need a deeper look? Investigate like an analyst →</button></p>
+      <div class="modes" id="modes" role="tablist" aria-label="Mode"><button type="button" data-mode="simple" class="on"><b>Simple check</b><small>a clear yes or no for everyone</small></button><button type="button" data-mode="investigate"><b>Investigate</b><small>a team of analysts writes an incident report</small></button></div>
+
+      <div class="examples"><span class="small">Test links (fake sites we host):</span><div class="chipset" id="examples"></div></div>
+
+      <div class="examples"><span class="small">Got a QR code instead?</span><label class="qrbtn">▦ Scan a QR picture<input type="file" id="qrfile" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label><span class="small" id="qrnote"></span></div>
+
+      <p class="err" id="err"></p>
+    </section>
+
     <div class="layout">
       <div class="left">
-        <section class="intake card" id="intake">
-          <div class="intake-copy">
-            <h2>Curious about a link? <span>Let Decoy open it <em>for you.</em></span></h2>
-            <p class="sub">The link is opened in a throwaway browser on a Vultr server, never on your device. An agent clicks around,
-              types <b>fake</b> logins and card numbers, and records where they go. Then the sandbox is destroyed.</p>
-          </div>
-          <div class="modes" id="modes" role="tablist" aria-label="Mode"><button type="button" data-mode="simple" class="on"><b>Simple check</b><small>a clear yes or no for everyone</small></button><button type="button" data-mode="investigate"><b>Investigate</b><small>a team of analysts writes an incident report</small></button></div>
-          <form id="form" class="ask">
-            <input id="url" type="text" placeholder="Paste a link from an email, WhatsApp or text message" autocomplete="off" spellcheck="false">
-            <button class="btn primary" type="submit" id="go">Open it safely →</button>
-          </form>
-          <div class="examples"><span class="small">Test links (fake sites we host):</span><div class="chipset" id="examples"></div></div>
-          <div class="examples"><span class="small">Got a QR code instead?</span><label class="qrbtn">▦ Scan a QR picture<input type="file" id="qrfile" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label><span class="small" id="qrnote"></span></div>
-          <p class="err" id="err"></p>
-        </section>
 
         <section class="card globecard" id="globecard" aria-label="World view">
           <div class="ghead"><div><span class="lbl">World view</span><div class="gtitle" id="ghud">Paste a link</div></div><span class="gstate" id="gstate"></span></div>

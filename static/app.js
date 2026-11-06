@@ -248,7 +248,7 @@ async function init() {
 function reset() {
   $('run').classList.remove('hidden');
   $('intake').classList.add('compact');
-  document.body.dataset.risk = 'idle'; $('riskbar').hidden = true;
+  document.body.dataset.risk = 'idle'; $('riskbar').hidden = true; document.body.dataset.stage = 'run';
   $('vlevel').textContent = 'Working…';
   $('vsum').textContent = 'The sealed browser is opening the link. Nothing runs on your device.';
   $('vmeta').innerHTML = ''; $('ringNum').textContent = '–'; $('ringFg').style.strokeDashoffset = 188.5;
@@ -271,17 +271,24 @@ function reset() {
   stepTo(1);
 }
 
+let geoSeen = false;
 async function start() {
   $('err').textContent = '';
   const url = $('url').value.trim();
   if (!url) { $('err').textContent = 'Paste a link first.'; return; }
   $('go').disabled = true;
   try {
+    fetch('/api/geo?url=' + encodeURIComponent(url)).then(g => g.json()).then(g => {  // the globe does not wait for the queue
+      if (g.loc) { geoSeen = true; document.body.dataset.first = 'globe'; try { GLB.event({type: 'start', origin: g.origin}); GLB.event({type: 'geo', role: 'lure', ...g.loc}); } catch (e) {} }
+      else { document.body.dataset.first = 'browser'; }
+    }).catch(() => {});
     const r = await fetch('/api/scan', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url, mode})});
     const j = await r.json();
     if (!r.ok) { $('err').textContent = j.detail || 'Could not start.'; $('go').disabled = false; return; }
-    scanId = j.id; reset();
-    $('run').scrollIntoView({behavior: 'smooth', block: 'start'});
+    scanId = j.id; reset(); geoSeen = false;
+    document.body.dataset.stage = 'run'; document.body.dataset.first = 'globe';  // the world view leads when the link's server can be located
+    setTimeout(() => { if (!geoSeen) document.body.dataset.first = 'browser'; }, 2200);  // otherwise the sealed browser leads, as soon as it streams
+    ($('globecard') || $('run')).scrollIntoView({behavior: 'smooth', block: 'start'});
     if (source) source.close();
     source = new EventSource(`/api/scan/${scanId}/events`);
     source.onmessage = m => { try { handle(JSON.parse(m.data)); } catch (e) { console.error(e); } };
@@ -291,6 +298,7 @@ async function start() {
 
 function handle(ev) {
   if (ev.type !== 'end') evCount++;
+  if (ev.type === 'geo') { geoSeen = true; if (document.body.dataset.stage === 'run') document.body.dataset.first = 'globe'; }
   try { WF.event(ev); } catch (e) { console.error(e); }
   try { GLB.event(ev); } catch (e) { console.error(e); }
   switch (ev.type) {
@@ -454,3 +462,5 @@ async function decide(d) {
 }
 
 init();
+
+document.addEventListener('DOMContentLoaded', () => { const d = document.getElementById('deeper'); if (d) d.onclick = () => { const b = document.querySelector('#modes button[data-mode=investigate]'); if (b) b.click(); document.getElementById('url').focus(); }; });
