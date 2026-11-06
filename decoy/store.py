@@ -89,6 +89,21 @@ def threats(limit: int = 30, include_demo: bool = False, path=None) -> list[dict
     return out[:limit]
 
 
+def decision_for(site: str, path=None) -> dict | None:
+    """The person's latest block or allow decision for a site (the registrable domain), or None."""
+    with _LOCK, _conn(path) as c:
+        r = c.execute("SELECT decision, note, at FROM scans WHERE site=? AND decision IN ('block','allow') ORDER BY at DESC LIMIT 1", (site,)).fetchone()
+    return dict(r) if r else None
+
+
+def decided_sites(decision: str, path=None) -> list[str]:
+    """Hosts whose LATEST decision by the person is `decision` (a later 'allow' replaces an earlier 'block' and the other way round)."""
+    with _LOCK, _conn(path) as c:
+        rows = c.execute("SELECT host, site, decision FROM scans WHERE decision IN ('block','allow') ORDER BY at ASC").fetchall()
+    latest = {r["site"]: (r["decision"], r["host"]) for r in rows}
+    return sorted(h for d, h in latest.values() if d == decision)
+
+
 def blocklist(include_demo: bool = False, path=None) -> list[str]:
     """Domains to block: the site of every DANGEROUS scan and every server that received stolen data."""
     domains = set()
@@ -97,4 +112,6 @@ def blocklist(include_demo: bool = False, path=None) -> list[str]:
             domains.add(r["host"])
             for g in r["exfil_geo"]:
                 domains.add(g["host"])
+    domains |= set(decided_sites("block", path))  # what the person blocked always belongs on the list
+    domains -= set(decided_sites("allow", path))  # and what they marked safe never does
     return sorted(d for d in domains if d)

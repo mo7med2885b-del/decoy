@@ -368,3 +368,26 @@ def test_bot_check_page_is_not_cloaking():
     assert c is None
     c2 = cloaking([{"name": "Laptop", "sig": ("VoltPay", True)}, {"name": "Security bot", "sig": ("Spring Sale", False)}])
     assert c2 and c2["kind"] == "cloaking"
+
+
+def test_address_read_scores_lookalikes_high_and_official_sites_zero():
+    from decoy import address
+    bad = address.read("http://paypa1-secure-login.top/verify?account=1")
+    assert bad["score"] >= 45 and bad["level"] == "risky" and len(bad["reasons"]) == 3
+    assert address.read("https://www.paypal.com/signin")["score"] == 0 and address.read("https://example.com/")["score"] < 20
+
+
+def test_needs_a_look_when_a_bot_check_hides_the_page_and_allow_list_wins(tmp_path):
+    from decoy import store
+    ev = Evidence("https://shop.example.org/", [{"kind": "new_domain", "weight": 12, "text": "young"}])
+    ev.add_state({"url": "https://shop.example.org/", "title": "Just a moment...", "page": {"visible_text": "Checking your browser"}, "network": [], "gate": "captcha"}, 0)
+    v = ev.verdict()
+    assert v["level"] in ("NEEDS A LOOK", "NO THREAT FOUND")
+    ev2 = Evidence("https://shop.example.org/", [])
+    ev2.address_score = 80
+    ev2.add_state({"url": "https://shop.example.org/", "title": "Shop", "page": {"visible_text": "Welcome " * 20}, "network": []}, 0)
+    assert ev2.verdict()["level"] == "NEEDS A LOOK"
+    db = tmp_path / "t.db"
+    store.save("a1", "https://bad.test/", {"level": "DANGEROUS", "score": 70, "evidence": [], "attacker_got": [], "summary": "x", "swarm": [], "exfil_geo": []}, path=db)
+    store.decide("a1", "allow", "mine", path=db)
+    assert store.decision_for("bad.test", path=db)["decision"] == "allow" and "bad.test" not in store.blocklist(True, path=db)

@@ -95,6 +95,15 @@ def warm_up():
         pass
 
 
+@app.get("/api/address")
+def address_read(url: str, request: Request):
+    """The link's own risk read (about 25 clues, no network): answered at once, before any sandbox opens."""
+    from decoy import address as addr
+    rate_limit(request, "address", 240)
+    r = addr.read(url)
+    return {"score": r["score"], "level": r["level"], "reasons": r["reasons"], "official": r["official"]}
+
+
 @app.get("/api/geo")
 def early_geo(url: str, request: Request):
     """Where the link's server is, answered at once (before the scan leaves the queue) so the globe can lead. Public addresses only."""

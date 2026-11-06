@@ -19,6 +19,7 @@ from .verdict import cloaking, is_telemetry
 AGENTS = {  # id: (name, icon, kind, what it does)
     "check": ("Address and reputation", "⌁", "code", "Checks the address in plain code: look-alike brands, link shorteners, free-hosting subdomains, and the age of the domain (public RDAP data)."),
     "geo": ("Server location", "◎", "code", "Resolves the host and looks up where the server is and who runs it (IP, city, country, hosting company). Never connects to the server's IP."),
+    "address": ("Address read", "\u2318", "code", "Scores the link itself with a transparent checklist of about 25 clues (look-alike brand, odd ending, free hosting, hyphens and digits, login words, redirect tricks) and gives up to three plain reasons, before any sandbox opens. A hint, never the verdict."),
     "tls": ("TLS certificate", "🔒", "code", "Reads the site's HTTPS certificate: does it verify, who issued it, how new is it. A fresh or broken certificate is a common scam sign."),
     "script": ("Script reverse engineer", "‹/›", "model", "Reads the page's scripts: what they read, where they send it, redirects, obfuscation. Rule-based static analysis first, a small Vultr AI model adds a reading."),
     "endpoints": ("Endpoint hunter", "⇄", "model", "Lists every background request the page made: which carried the typed fake data, which went to analytics, which to a phishing-kit channel, and in which country they end up."),
@@ -27,7 +28,7 @@ AGENTS = {  # id: (name, icon, kind, what it does)
     "intel": ("Threat intelligence", "◈", "code", "Checks threat memory: earlier scans of this site and campaigns linked through the same data-collection server."),
     "cloak": ("Cloaking detector", "⚖", "code", "Compares what the laptop, the phone and the security bot were each shown. A login form hidden from the bot is cloaking."),
 }
-GROUP_A = ("check", "geo", "tls")
+GROUP_A = ("check", "geo", "tls", "address")
 GROUP_B = ("script", "endpoints", "privacy", "lure", "intel", "cloak")
 OBFUSCATION = [r"\batob\(", r"\beval\(", r"fromcharcode", r"\bunescape\(", r"(\\x[0-9a-f]{2}){4,}", r"\bdocument\.write\(\s*unescape"]
 
@@ -63,6 +64,13 @@ def check_agent(ctx):
         if sig:
             items.append(sig)
     return {"findings": findings or ["The address looks ordinary: no look-alike brand, shortener or free-hosting name."], "items": items}
+
+
+def address_agent(ctx):
+    from . import address as addr
+    r = addr.read(ctx["url"])
+    head = f"Address risk {r['score']}/100 ({r['level']})."
+    return {"findings": [head] + r["reasons"][:3], "items": []}
 
 
 def geo_agent(ctx):
@@ -158,7 +166,7 @@ def cloak_agent(ctx):
     return {"findings": [c["text"]], "items": [c]}
 
 
-FUNCS = {"check": check_agent, "geo": geo_agent, "tls": tls_agent, "script": script_agent, "endpoints": endpoints_agent,
+FUNCS = {"check": check_agent, "address": address_agent, "geo": geo_agent, "tls": tls_agent, "script": script_agent, "endpoints": endpoints_agent,
          "privacy": privacy_agent, "lure": lure_agent, "intel": intel_agent, "cloak": cloak_agent}
 
 

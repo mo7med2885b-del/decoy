@@ -289,6 +289,11 @@ class Evidence:
             score = 24
         level = "DANGEROUS" if score >= 60 else "SUSPICIOUS" if score >= 25 else \
             "LOOKS SAFE" if self.official and score < 10 else "NO THREAT FOUND"
+        # the evidence conflicts: Decoy could not see the page (a bot check blocked it) or the address looks risky while the behaviour looked clean.
+        # Saying "safe" or "suspicious" would be a guess, so a person is asked to look.
+        blind = any("bot check" in x or "bot-check" in x for x in limits) and not self.official and 5 <= score < 60
+        if level == "NO THREAT FOUND" and not self.official and (blind or getattr(self, "address_score", 0) >= 60):
+            level = "NEEDS A LOOK"
         items = sorted((i for i in items if i["weight"] > 0), key=lambda i: -i["weight"])
         got = [{"host": h, "data": sorted(k)} for h, k in self.leaks.items() if site(h) != start_site and not is_telemetry(h)]
         # What was checked and passed (shown on clean results so the answer is concrete).
@@ -318,6 +323,9 @@ def template_summary(v: dict) -> str:
         return (f"Nothing harmful happened during this visit: it is {page} on {v.get('page_host') or 'this site'}. It did not ask for "
                 "a password or card, push a download or send data to other sites. That is not a trust rating: Decoy has no history for "
                 "this site, so do not treat it as trusted, and never type passwords on a page you reached from a message." + extra)
+    if v["level"] == "NEEDS A LOOK":
+        return ("Decoy cannot call this one. The evidence conflicts: either the page was held behind a bot check so Decoy could not see it, or the address looks risky while nothing bad "
+                "happened during the visit. Look at the reasons and the screenshots, and do not enter a password on it until you are sure." + extra)
     lead = "Do not open this link." if v["level"] == "DANGEROUS" else "Be careful with this link."
     return lead + " " + v["evidence"][0]["text"] + " The reasons are listed below."
 

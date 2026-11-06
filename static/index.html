@@ -37,7 +37,7 @@
       <i class="steps-fill" id="stepsFill"></i>
     </ol>
 
-    <div class="rebar" id="rebar"><span class="rebar-l">Checking</span><b id="rebarurl"></b><button type="button" class="rebar-new" id="rebarnew">New scan</button></div>
+    <div class="rebar" id="rebar"><span class="rebar-l">Checking</span><b id="rebarurl"></b><span class="addrchip hidden" id="addrchip"></span><button type="button" class="rebar-new" id="rebarnew">New scan</button></div>
     <section class="intake hero" id="intake">
       <h1 class="hero-h">Not sure about that link?<span><b>/</b>Let <em class="gword">Decoy</em> click first.</span></h1>
       <form id="form" class="spill" autocomplete="off">
@@ -87,6 +87,8 @@
                 <span class="lbl">Verdict</span>
                 <div class="vlevel" id="vlevel">Working…</div>
                 <p class="vsum" id="vsum">The sealed browser is opening the link.</p>
+                <p class="baserate hidden" id="baserate">Most links people check are harmless, so a flag can be a false alarm. Read the reasons and look at the screenshots before you block anything.</p>
+                <p class="override hidden" id="override"></p>
               </div>
               <div class="vmeta" id="vmeta"></div>
             </div>

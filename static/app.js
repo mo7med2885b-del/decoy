@@ -46,8 +46,8 @@ function stat(id, v, hot) { $(id).textContent = v; $(id).parentElement.classList
 
 
 /* ---------- swarm cards, memory banner, ask box, history, QR ---------- */
-const LEVEL_TXT = {'DANGEROUS': 'Dangerous', 'SUSPICIOUS': 'Suspicious', 'LOOKS SAFE': 'Looks safe', 'NO THREAT FOUND': 'No threat'};
-function levelCls(l) { return l === 'DANGEROUS' ? 'bad' : l === 'SUSPICIOUS' ? 'warn' : 'ok'; }
+const LEVEL_TXT = {'DANGEROUS': 'Dangerous', 'SUSPICIOUS': 'Suspicious', 'NEEDS A LOOK': 'Needs a human look', 'LOOKS SAFE': 'Looks safe', 'NO THREAT FOUND': 'No threat'};
+function levelCls(l) { return l === 'DANGEROUS' ? 'bad' : (l === 'SUSPICIOUS' || l === 'NEEDS A LOOK') ? 'warn' : 'ok'; }
 function buildSwarm(list) {
   $('swarm').innerHTML = ''; $('swarmwarn').classList.add('hidden');
   $('swarmcard').classList.toggle('hidden', !(list && list.length > 1));
@@ -291,6 +291,9 @@ async function start() {
   if (!url) { $('err').textContent = 'Paste a link first.'; return; }
   $('go').disabled = true;
   try {
+    fetch('/api/address?url=' + encodeURIComponent(url)).then(r => r.json()).then(a => {  // the link's own read, before any sandbox
+      const c = $('addrchip'); c.className = 'addrchip ' + a.level; c.textContent = ''; c.insertAdjacentHTML('beforeend', `<b>Address read ${a.score}/100</b><span>${esc((a.reasons || []).slice(0, 2).join(' '))}</span>`); c.classList.remove('hidden');
+    }).catch(() => {});
     fetch('/api/geo?url=' + encodeURIComponent(url)).then(g => g.json()).then(g => {  // the globe does not wait for the queue
       if (g.loc) { geoSeen = true; document.body.dataset.first = 'globe'; try { GLB.event({type: 'start', origin: g.origin}); GLB.event({type: 'geo', role: 'lure', ...g.loc}); } catch (e) {} }
       else { document.body.dataset.first = 'browser'; }
@@ -437,10 +440,13 @@ function handle(ev) {
 
 function showVerdict(v) {
   $('pdfbtn').href = `/api/scan/${scanId}/report.pdf`; $('pdfrow').classList.remove('hidden');
-  const risk = v.level === 'DANGEROUS' ? 'danger' : v.level === 'SUSPICIOUS' ? 'warn' : 'clean';
+  const risk = v.level === 'DANGEROUS' ? 'danger' : (v.level === 'SUSPICIOUS' || v.level === 'NEEDS A LOOK') ? 'warn' : 'clean';
   document.body.dataset.risk = risk;
   if (risk === 'danger') { $('riskbar').hidden = false; $('riskText').textContent = 'Dangerous link: do not open it on your device.'; }
-  $('vlevel').textContent = v.level === 'LOOKS SAFE' ? 'Looks safe' : {danger: 'Dangerous link', warn: 'Suspicious link', clean: 'No threat found'}[risk];
+  $('vlevel').textContent = v.level === 'LOOKS SAFE' ? 'Looks safe' : (v.level === 'NEEDS A LOOK' ? 'Needs a human look' : {danger: 'Dangerous link', warn: 'Suspicious link', clean: 'No threat found'}[risk]);
+  const br = $('baserate'); br.classList.toggle('hidden', !(v.level === 'DANGEROUS' || v.level === 'SUSPICIOUS' || v.level === 'NEEDS A LOOK'));
+  const uo = v.user_override; const ob = $('override');
+  if (uo) { ob.classList.remove('hidden'); ob.innerHTML = `You ${uo.decision === 'allow' ? 'marked this site <b>safe</b>' : '<b>blocked</b> this site'} earlier${uo.note ? ' (' + esc(uo.note) + ')' : ''}, so your decision wins over the score. Decoy's own reading was <b>${esc(LEVEL_TXT[uo.level_was] || uo.level_was)}</b> (${uo.score_was}/100).`; } else ob.classList.add('hidden');
   $('ringNum').textContent = v.score;
   $('ringFg').style.strokeDashoffset = 188.5 * (1 - v.score / 100);
   $('vmeta').innerHTML = `<span>${v.seconds}s · ${v.model_calls} model calls</span><span>summary by ${esc(v.summary_by)}</span><span>score by code</span>`;

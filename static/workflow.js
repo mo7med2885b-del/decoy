@@ -7,6 +7,7 @@ const WF = (() => {
     control: [50, 62, '', 'Decoy control plane', 'Vultr VM · plans and verifies', 'core'],
     link: [50, 150, '✉', 'Suspicious link', 'email · WhatsApp · text', 'code'],
     check: [17, 245, '🧠', 'Reputation', 'code · domain age', 'code'],
+    address: [17, 150, '🧠', 'Address read', 'code · 25 clues, instant', 'code'],
     geo: [50, 245, '🧠', 'Server location', 'code · IP, city, host', 'code'],
     tls: [83, 245, '🧠', 'TLS certificate', 'code · issuer, age', 'code'],
     sandbox: [50, 345, '▣', 'Sealed browsers', 'Docker + gVisor each', 'code'],
@@ -29,16 +30,17 @@ const WF = (() => {
     human: [83, 1750, '✓', 'Your decision', 'block · safe · dismiss', 'human'],
   };
   Object.values(NODES).forEach(n => { n[1] = Math.round(n[1] * 1.28); });  // more air between the rows
-  const EDGES = [['control', 'link', 'model'], ['link', 'check'], ['link', 'geo'], ['link', 'tls'], ['check', 'sandbox'], ['sandbox', 'v_careless', 'model'], ['sandbox', 'v_phone'], ['sandbox', 'v_bot'],
+  const EDGES = [['control', 'link', 'model'], ['link', 'check'], ['link', 'geo'], ['link', 'tls'], ['link', 'address'], ['check', 'sandbox'], ['sandbox', 'v_careless', 'model'], ['sandbox', 'v_phone'], ['sandbox', 'v_bot'],
     ['v_careless', 'net'], ['v_careless', 'destroy'], ['v_phone', 'destroy'], ['v_bot', 'destroy'],
     ['destroy', 'script', 'model'], ['destroy', 'endpoints', 'model'], ['destroy', 'privacy', 'model'], ['script', 'lure', 'model'], ['endpoints', 'intel'], ['privacy', 'cloak'],
     ['orch', 'debate', 'orch'], ['debate', 'judge', 'model'], ['judge', 'analysts', 'model'], ['judge', 'summary', 'model'], ['analysts', 'human', 'model'], ['summary', 'human']];
-  EDGES.push(['orch', 'check', 'orch'], ['orch', 'geo', 'orch'], ['orch', 'tls', 'orch'], ['orch', 'script', 'orch'], ['orch', 'endpoints', 'orch'], ['orch', 'privacy', 'orch'], ['orch', 'lure', 'orch'], ['orch', 'intel', 'orch'], ['orch', 'cloak', 'orch']);
-  const PARENT = {check: 'link', geo: 'link', tls: 'link', script: 'destroy', endpoints: 'destroy', privacy: 'destroy', lure: 'script', intel: 'endpoints', cloak: 'privacy'};
+  EDGES.push(['orch', 'address', 'orch'], ['orch', 'check', 'orch'], ['orch', 'geo', 'orch'], ['orch', 'tls', 'orch'], ['orch', 'script', 'orch'], ['orch', 'endpoints', 'orch'], ['orch', 'privacy', 'orch'], ['orch', 'lure', 'orch'], ['orch', 'intel', 'orch'], ['orch', 'cloak', 'orch']);
+  const PARENT = {address: 'link', check: 'link', geo: 'link', tls: 'link', script: 'destroy', endpoints: 'destroy', privacy: 'destroy', lure: 'script', intel: 'endpoints', cloak: 'privacy'};
   const VISITOR = {careless: 'v_careless', phone: 'v_phone', bot: 'v_bot'};
   const INFO = {
     control: 'The control plane runs on a Vultr VM. It plans the scan, starts the sandboxes and the agents, validates every suggestion of the AI in code and enforces the budget caps.',
     link: 'The address you pasted. It is checked in plain code before anything opens: web links only, no private or internal addresses.',
+    address: 'Reads the link itself with a transparent checklist of about 25 clues (look-alike brand, odd ending, free hosting, hyphens and digits, login words, redirect tricks) and gives a risk score with up to three plain reasons, in milliseconds. A hint, never the verdict.',
     check: 'Plain code: look-alike brands, link shorteners, free-hosting subdomains, official-site recognition, and the age of the domain from public RDAP data.',
     geo: 'Resolves the host and looks up the server: IP, city, country and hosting company. It never connects to the server itself.',
     tls: 'Reads the HTTPS certificate: does it verify, who issued it, how new it is. A broken or brand-new certificate is a common scam sign.',
@@ -161,7 +163,7 @@ const WF = (() => {
     });
   }
 
-  const HUES = {script: 262, endpoints: 200, privacy: 160, lure: 24, intel: 330, cloak: 48, check: 210, geo: 180, tls: 120, lead: 285, orch: 42, v_careless: 12, v_phone: 190, v_bot: 90};
+  const HUES = {script: 262, endpoints: 200, privacy: 160, lure: 24, intel: 330, cloak: 48, check: 210, address: 290, geo: 180, tls: 120, lead: 285, orch: 42, v_careless: 12, v_phone: 190, v_bot: 90};
   const NAME = {lead: 'Review lead', orch: 'Orchestrator'};
   const escH = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
   function say(who, text, o = {}) {  // one message in the agent chat room

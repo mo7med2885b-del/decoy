@@ -22,9 +22,10 @@ from concurrent.futures import ThreadPoolExecutor
 from . import geo as geo_mod
 from . import reputation
 from . import investigate, store
+from . import address as address_mod
 from . import debate as debate_mod
 from . import swarm as swarm_mod
-from .verdict import is_shared_backend, Evidence, cloaking, is_telemetry, template_summary
+from .verdict import is_shared_backend, Evidence, cloaking, is_telemetry, site, template_summary
 
 def env_int_s(key: str, default: int) -> int:
     try:
@@ -375,6 +376,7 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
     agents.shutdown(wait=False)
 
     v = ev.verdict()
+    ev.address_score = address_mod.read(url)["score"]
     v = ev.verdict()
     v["consensus"] = None  # filled in when the debate ends (event consensus_final)
     mem = out.get("memory") or {"seen_before": [], "campaign": []}
@@ -382,6 +384,17 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
     v["exfil_geo"] = [{k: tracker.locs[g["host"]].get(k) for k in ("host", "ip", "city", "code", "org", "simulated")} for g in v["attacker_got"] if g["host"] in tracker.locs]
     v["swarm"] = [{k: x[k] for k in ("id", "name", "device", "level", "shot", "full", "title", "error", "asked")} for x in visitors]
     v["agents"] = {aid: {"findings": r["findings"][:3], "by": r.get("by", "rules")} for aid, r in agent_results.items()}
+    v["address"] = address_mod.read(url)
+    try:  # what the person decided about this site before wins over the score, and says so
+        d = store.decision_for(site(host))
+    except Exception:
+        d = None
+    if d:
+        v["user_override"] = {"decision": d["decision"], "at": d["at"], "note": d.get("note") or "", "level_was": v["level"], "score_was": v["score"]}
+        if d["decision"] == "allow" and v["level"] in ("SUSPICIOUS", "DANGEROUS", "NEEDS A LOOK"):
+            v["level"] = "LOOKS SAFE"
+        elif d["decision"] == "block":
+            v["level"] = "DANGEROUS"
     v["summary"], v["summary_by"] = template_summary(v), "rules"
     if use_model:
         try:

@@ -13,7 +13,7 @@ from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Image, KeepTogether, ListFlowable, ListItem, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 BLUE, ORANGE, INK, MUTED, LINE = colors.HexColor("#1f63f0"), colors.HexColor("#f26a0a"), colors.HexColor("#0b1530"), colors.HexColor("#56658a"), colors.HexColor("#d2dcf1")
-LEVEL_TXT = {"DANGEROUS": "Dangerous link", "SUSPICIOUS": "Suspicious link", "NO THREAT FOUND": "No threat found", "LOOKS SAFE": "Looks safe"}
+LEVEL_TXT = {"DANGEROUS": "Dangerous link", "SUSPICIOUS": "Suspicious link", "NEEDS A LOOK": "Needs a human look", "NO THREAT FOUND": "No threat found", "LOOKS SAFE": "Looks safe"}
 
 
 def _esc(s) -> str:
@@ -35,7 +35,7 @@ def build(scan_id: str, url: str, v: dict, report: dict | None, runs_dir: Path, 
     S = ParagraphStyle("s", parent=P, textColor=MUTED, fontSize=8)
     T = ParagraphStyle("t", parent=ss["Title"], textColor=INK, fontSize=22, alignment=0, spaceAfter=2)
     level = v.get("level", "")
-    lvl_color = ORANGE if level in ("DANGEROUS", "SUSPICIOUS") else BLUE
+    lvl_color = ORANGE if level in ("DANGEROUS", "SUSPICIOUS", "NEEDS A LOOK") else BLUE
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=16 * mm, rightMargin=16 * mm, topMargin=14 * mm, bottomMargin=14 * mm, title="Decoy link report", author="Decoy")
     out = []
@@ -47,6 +47,14 @@ def build(scan_id: str, url: str, v: dict, report: dict | None, runs_dir: Path, 
     box = Table([[Paragraph(f"<font size=22 color='{lvl_color.hexval()}'><b>{_esc(v.get('score'))}</b></font><br/><font size=7 color='#56658a'>out of 100, counted by code</font>", P), Paragraph(_esc(v.get("summary", "")), P)]], colWidths=[34 * mm, 134 * mm])
     box.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.8, LINE), ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f4f7ff")), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 8), ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8)]))
     out += [box]
+    if level in ("DANGEROUS", "SUSPICIOUS", "NEEDS A LOOK"):
+        out += [Spacer(1, 3), Paragraph("Most links people check are harmless, so a flag can be a false alarm. Read the reasons and the screenshots before you block anything.", S)]
+    uo = v.get("user_override")
+    if uo:
+        out += [Spacer(1, 3), Paragraph(f"Your earlier decision ({_esc(uo.get('decision'))}) won over the score. Decoy's own reading was {_esc(LEVEL_TXT.get(uo.get('level_was'), uo.get('level_was')))} ({_esc(uo.get('score_was'))}/100).", S)]
+    ad = v.get("address") or {}
+    if ad.get("reasons"):
+        out += [Spacer(1, 3), Paragraph(f"Address read: {_esc(ad.get('score'))}/100. " + " ".join(_esc(r) for r in ad["reasons"]), S)]
 
     ev = v.get("evidence") or []
     if ev:
