@@ -81,6 +81,13 @@ def report(path: str):
     secs = sorted(r["seconds"] for r in rs if r["seconds"])
     if secs:
         print(f"scan time: median {secs[len(secs) // 2]}s, max {secs[-1]}s")
+    import statistics as st
+    for label in ("phish", "benign"):
+        g = [r for r in rs if r["label"] == label and assessable(r)]
+        if g:
+            print(f"{label}: median score {st.median(r['score'] for r in g):g}, median scan time {st.median(r['seconds'] for r in g):g}s, "
+                  f"median score of flagged {st.median([r['score'] for r in g if flagged(r)] or [0]):g}")
+    print("not assessable counts:", {l: sum(1 for r in rs if r["label"] == l and not assessable(r)) for l in ("phish", "benign")})
 
 
 if __name__ == "__main__":
