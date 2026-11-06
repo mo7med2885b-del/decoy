@@ -140,7 +140,7 @@ function renderReport(r) {
   const box = $('report'); box.classList.remove('hidden'); $('invbar').classList.add('hidden');
   const iocRows = r.iocs.map(i => `<tr><td>${esc(i.type)}</td><td><code>${esc(i.value)}</code></td><td>${esc(i.role)}</td></tr>`).join('');
   box.innerHTML = `<div class="rh"><div><span class="lbl">Incident report ${esc(r.id)} · ${esc(r.generated_at)}</span><h4>${esc(r.headline)}</h4></div>`
-    + `<div class="rdl"><a class="btn" href="/api/scan/${scanId}/report.md">Download .md</a><a class="btn" href="/api/scan/${scanId}/report.json">Download .json</a></div></div>`
+    + `<div class="rdl"><a class="btn" href="/api/scan/${scanId}/report.pdf">Download PDF</a><a class="btn" href="/api/scan/${scanId}/report.md">Download .md</a><a class="btn" href="/api/scan/${scanId}/report.json">Download .json</a></div></div>`
     + `<div class="rcols"><div><h5>How the scam works</h5><ol>${r.how_it_works.map(s => `<li>${esc(s)}</li>`).join('')}</ol>`
     + `<h5>Suggested ATT&amp;CK mapping</h5><ul>${r.techniques.map(t => `<li><b>${esc(t.id || 'no id')}</b> ${esc(t.name)}<br><small class="small">${esc(t.why)}</small></li>`).join('')}</ul></div>`
     + `<div><h5>Recommended actions</h5><ul>${r.actions.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div></div>`
@@ -435,6 +435,7 @@ function handle(ev) {
 }
 
 function showVerdict(v) {
+  $('pdfbtn').href = `/api/scan/${scanId}/report.pdf`; $('pdfrow').classList.remove('hidden');
   const risk = v.level === 'DANGEROUS' ? 'danger' : v.level === 'SUSPICIOUS' ? 'warn' : 'clean';
   document.body.dataset.risk = risk;
   if (risk === 'danger') { $('riskbar').hidden = false; $('riskText').textContent = 'Dangerous link: do not open it on your device.'; }

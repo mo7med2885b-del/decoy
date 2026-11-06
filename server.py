@@ -12,7 +12,7 @@ import time
 import uuid
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from decoy import ask as ask_mod
@@ -310,6 +310,18 @@ def report_md(scan_id: str):
     if not r:
         raise HTTPException(404, "No report yet. Run the investigation first.")
     return PlainTextResponse(investigate.to_markdown(r), headers={"Content-Disposition": f'attachment; filename="decoy-report-{r["id"]}.md"'})
+
+
+@app.get("/api/scan/{scan_id}/report.pdf")
+def report_pdf(scan_id: str):
+    """A PDF of the scan: verdict, reasons, screenshots, visitors, and the incident report when the analysts ran."""
+    from decoy import pdfreport
+    s = SCANS.get(scan_id) or {}
+    v = s.get("verdict")
+    if not v:
+        raise HTTPException(404, "No finished scan to put in a PDF yet.")
+    data = pdfreport.build(scan_id, s.get("url", ""), v, s.get("report"), RUNS / scan_id, ROOT / "assets" / "logo.png")
+    return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="decoy-report-{scan_id}.pdf"'})
 
 
 @app.post("/api/qr")

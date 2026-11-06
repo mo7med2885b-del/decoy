@@ -65,7 +65,8 @@ EOF
 
 cat >/etc/caddy/Caddyfile <<EOF
 $DECOY_HOST {
-    encode gzip
+    @nosse not path_regexp sse ^/api/scan/[^/]+/events
+    encode @nosse gzip
     reverse_proxy 127.0.0.1:8020 {
         flush_interval -1
     }

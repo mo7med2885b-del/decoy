@@ -40,6 +40,15 @@ def is_identity_provider(host: str) -> bool:
     return any(h == p or h.endswith("." + p) for p in IDENTITY_PROVIDERS)
 
 
+AUTH_BACKENDS = (".supabase.co", ".supabase.com", "firebaseio.com", "firebaseapp.com", "identitytoolkit.googleapis.com", "securetoken.googleapis.com", "amazoncognito.com",
+                 "auth0.com", "clerk.accounts.dev", "clerk.com", "b2clogin.com", "okta.com", "stytch.com", "frontegg.com", "appwrite.io", "nhost.run", "stripe.com", "paypal.com")
+
+
+def is_auth_backend(host: str) -> bool:
+    h = (host or "").lower()
+    return any(h == p.lstrip(".") or h.endswith(p if p.startswith(".") else "." + p) for p in AUTH_BACKENDS) or ("cognito-idp." in h and h.endswith(".amazonaws.com"))
+
+
 def is_telemetry(host: str) -> bool:
     h = (host or "").lower()
     return any(h == t or h.endswith("." + t) or (t.endswith(".") and t in h) for t in TELEMETRY)
@@ -184,6 +193,10 @@ class Evidence:
             what = ", ".join(LABELS.get(k, k.lower()) for k in sorted(kinds))
             if is_telemetry(dest):
                 items.append({"kind": "telemetry_leak", "weight": 12, "text": f"What was typed also reached an analytics or error-monitoring service ({dest}). That is common and not theft, but it means typed text can be recorded."})
+            elif site(dest) != start_site and is_auth_backend(dest):
+                # a hosted sign-in or payment service (Supabase, Firebase, Cognito, Auth0, Stripe ...) is what most real apps use for their own login;
+                # a phishing page can use one too, so it only becomes serious together with other signs (look-alike, brand imitation, cloaking)
+                items.append({"kind": "auth_backend", "weight": 18, "text": f"The sign-in form sent the fake {what} to a hosted sign-in service ({dest}). Many real apps do exactly this; it only matters together with other warning signs."})
             elif site(dest) != start_site and is_identity_provider(dest):
                 items.append({"kind": "sso_login", "weight": 5, "text": f"A sign-in button sent the visitor to a known sign-in service ({dest}). That is how \"Sign in with ...\" works, not theft."})
             elif site(dest) != start_site and not (set(kinds) & SENSITIVE):

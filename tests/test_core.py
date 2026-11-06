@@ -348,3 +348,15 @@ def test_young_domain_alone_is_not_suspicious_but_counts_with_other_signals():
     ev2 = Evidence("https://new-event.example/", [{"kind": "new_domain", "weight": 25, "text": "x"}, {"kind": "free_hosting", "weight": 15, "text": "y"}])
     ev2.add_state({"url": "https://new-event.example/", "title": "t", "page": {"visible_text": "Join " * 20}, "network": []}, 0)
     assert ev2.verdict()["level"] in ("SUSPICIOUS", "DANGEROUS")
+
+
+def test_hosted_signin_service_is_not_stolen_credentials_and_pdf_builds():
+    from decoy import pdfreport
+    from pathlib import Path
+    ev = Evidence("http://app.example.org/", [])
+    ev.add_state({"url": "http://app.example.org/", "title": "App", "page": {"visible_text": "Sign in " * 20}, "network": [
+        {"url": "https://abc.supabase.co/auth/v1/token", "host": "abc.supabase.co", "method": "POST", "type": "fetch", "canary_sent": ["EMAIL", "PASSWORD"]}]}, 0)
+    v = ev.verdict()
+    assert not any(e["kind"] == "credentials_sent_elsewhere" for e in v["evidence"]) and v["level"] not in ("SUSPICIOUS", "DANGEROUS")
+    pdf = pdfreport.build("t1", "http://app.example.org/", {**v, "summary": "s", "swarm": [], "attacker_got": [], "exfil_geo": []}, None, Path("nonexistent-folder"))
+    assert pdf[:4] == b"%PDF"

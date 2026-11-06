@@ -678,3 +678,8 @@ body[data-stage="run"][data-first="browser"] #globecard { order: 2; }
 /* the sealed browser is always above the globe while a scan runs (from the first second) */
 body[data-stage="run"] #run > .browser { order: 1 !important; }
 body[data-stage="run"] #globecard { order: 2 !important; }
+
+/* ---- v22: long host names stay inside the analyst cards; PDF button ---- */
+.desk, .desk .df, .desk .df li, .desk .dh { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+.desks { align-items: start; } .desk .df li { hyphens: auto; }
+.pdfrow { margin: 12px 0 2px; } .pdfrow .btn { text-decoration: none; background: #0b1530; color: #fff; border-color: #0b1530; font-weight: 800; padding: 12px 22px; display: inline-block; }
