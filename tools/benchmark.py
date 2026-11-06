@@ -36,7 +36,9 @@ def run(urls_csv: str, out: str, limit: int = 0):
         try:
             v = agent.run_scan(uuid.uuid4().hex[:12], url, ev.append, Budget())
             rec = {"url": url, "label": label, "source": source, "level": v["level"], "score": v["score"], "kinds": [e["kind"] for e in v["evidence"]],
-                   "limits": v.get("limits", []), "title": v.get("page_title", ""), "error": v.get("error"), "seconds": round(time.time() - t0, 1),
+                   "limits": v.get("limits", []), "address_score": (v.get("address") or {}).get("score"), "consensus": (v.get("consensus") or {}).get("text"),
+                   "rounds": (v.get("consensus") or {}).get("rounds"), "dissent": (v.get("consensus") or {}).get("dissent"),
+                   "agents": {k: (x.get("findings") or [""])[0][:160] for k, x in (v.get("agents") or {}).items()}, "title": v.get("page_title", ""), "error": v.get("error"), "seconds": round(time.time() - t0, 1),
                    "static_only": all(e["kind"] in {"free_hosting", "new_domain", "lookalike_domain", "no_https", "shortener", "raw_ip", "bad_cert", "fresh_cert"} for e in v["evidence"]) if v["evidence"] else None}
         except Exception as e:  # a crash is a result too
             rec = {"url": url, "label": label, "source": source, "level": "ERROR", "score": 0, "kinds": [], "limits": [], "error": str(e)[:120], "seconds": round(time.time() - t0, 1)}
