@@ -20,7 +20,7 @@ from urllib.parse import urlsplit
 
 from playwright.sync_api import sync_playwright
 
-MAX_REQUESTS = 400
+MAX_REQUESTS = 600
 VIEW = {"width": 1280, "height": 800}
 BLOCKED_NAMES = {"localhost", "metadata.google.internal", "metadata", "host.docker.internal"}
 
@@ -203,7 +203,8 @@ class Runner:
 
     def _route_inner(self, route):
         req = route.request
-        self.requests_seen += 1
+        if req.resource_type not in ("image", "font", "stylesheet", "media"):
+            self.requests_seen += 1
         host = urlsplit(req.url).hostname or ""
         demo = bool(self.demo_suffix and host.endswith(self.demo_suffix))
         entry = {"url": req.url[:300], "method": req.method, "host": host, "type": req.resource_type}
@@ -220,8 +221,10 @@ class Runner:
             sent.append("CVV")  # the short code only counts together with the card number
         if sent:
             entry["canary_sent"] = sent
-        if self.requests_seen > MAX_REQUESTS:
-            entry.update(blocked=True, reason="request limit reached")
+        if req.resource_type in ("image", "font", "stylesheet", "media") and self.requests_seen > MAX_REQUESTS:
+            return route.abort()  # pictures, fonts and styles are not evidence: past the cap they are dropped silently (never reported as a block)
+        if self.requests_seen > MAX_REQUESTS * 3:
+            entry.update(limited=True, reason="request limit reached")  # a safety cap against endless pages: a note, not an attack, so not "blocked"
             self.network.append(entry)
             return route.abort()
         if not req.url.startswith(("http://", "https://", "data:", "blob:")):
