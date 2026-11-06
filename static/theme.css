@@ -665,3 +665,8 @@ body[data-stage="run"] .hero-h { font-size: 30px; }
 
 /* header: only the logo, the theme switch and Vultr; the status pills are gone */
 #pSandbox, #pAgent, #pSpend { display: none !important; }
+
+/* the node details open as a floating card, always in view */
+#wfdetail { position: fixed !important; right: 22px; top: 86px; width: min(420px, 92vw); max-height: calc(100vh - 120px); overflow: auto; z-index: 70; box-shadow: 0 24px 70px rgba(11, 21, 48, .35), 0 0 0 2px rgba(45, 107, 255, .35) !important; background: #fff; }
+:root:not([data-theme="light"]) #wfdetail { background: #0f1a33; }
+#wfdetail.hidden { display: none !important; }

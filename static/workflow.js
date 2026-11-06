@@ -124,7 +124,7 @@ const WF = (() => {
   function menu(id, x, y) {  // right-click menu on a node
     document.querySelectorAll('.wf-menu').forEach(m => m.remove());
     const m = document.createElement('div'); m.className = 'wf-menu';
-    m.innerHTML = `<div class="mh">${escH(NODES[id][3])}</div><button type="button" data-a="detail">See details</button><button type="button" data-a="prompt">Show model and system prompt</button>`;
+    m.innerHTML = `<div class="mh">${escH(NODES[id][3])}</div><button type="button" data-a="detail">See details</button>${CARDS && CARDS[id] && CARDS[id].model ? '<button type="button" data-a="prompt">Show model and system prompt</button>' : ''}`;
     m.style.left = Math.min(x, innerWidth - 230) + 'px'; m.style.top = Math.min(y, innerHeight - 130) + 'px'; document.body.appendChild(m);
     const close = () => { m.remove(); removeEventListener('pointerdown', away, true); removeEventListener('keydown', esc, true); };
     const away = ev => { if (!m.contains(ev.target)) close(); }, esc = ev => { if (ev.key === 'Escape') close(); };
@@ -140,7 +140,7 @@ const WF = (() => {
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
     box.innerHTML = `<div class="dhead"><b>${esc(n[3])}</b><span class="dk ${n[5]}">${esc(kind)}</span><button type="button" class="dx" id="wfdx" aria-label="Close">×</button></div>`
       + `<p>${esc(INFO[id] || n[4])}</p>`
-      + (CARDS && CARDS[id] ? `<h6>Agent card</h6><p class="small">${esc(CARDS[id].does)}</p><p class="small"><b>Model:</b> ${esc(CARDS[id].model || 'none (plain code)')}</p><h6>System prompt</h6><pre class="sysprompt">${esc(CARDS[id].prompt)}</pre>` : '')
+      + (CARDS && CARDS[id] ? `<h6>Agent card</h6><p class="small">${esc(CARDS[id].does)}</p>` + (CARDS[id].model ? `<p class="small"><b>Model:</b> ${esc(CARDS[id].model)}</p><h6>System prompt</h6><pre class="sysprompt">${esc(CARDS[id].prompt)}</pre>` : '<p class="small"><b>Plain code:</b> no AI model, so there is no prompt.</p>') : '')
       + (h.length ? `<h6>Latest output</h6><div class="dout">${esc(h[0].text)}</div><h6>History</h6><ul>${h.map(x => `<li><i>${x.at}s</i> ${esc(x.text)}</li>`).join('')}</ul>` : '<p class="small">No activity yet in this scan.</p>');
     box.classList.remove('hidden'); $('wfdx').onclick = () => { box.classList.add('hidden'); selected = null; Object.values(el).forEach(x => x.classList.remove('sel')); };
   }
