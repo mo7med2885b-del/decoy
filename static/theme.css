@@ -674,3 +674,7 @@ body[data-stage="run"] .hero-h { font-size: 30px; }
 /* once the sealed browser shows a page it sits above the globe */
 body[data-stage="run"][data-first="browser"] #run > .browser { order: 1; }
 body[data-stage="run"][data-first="browser"] #globecard { order: 2; }
+
+/* the sealed browser is always above the globe while a scan runs (from the first second) */
+body[data-stage="run"] #run > .browser { order: 1 !important; }
+body[data-stage="run"] #globecard { order: 2 !important; }
