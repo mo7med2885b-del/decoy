@@ -662,3 +662,6 @@ body[data-stage="run"] .hero-h { font-size: 30px; }
 .dtabs .aitab { background: rgba(45, 107, 255, .14) !important; border-color: rgba(45, 107, 255, .45) !important; color: inherit; }
 .dtabs .aitab.on { background: #2d6bff !important; color: #fff !important; }
 .aisum { background: rgba(45, 107, 255, .10) !important; }
+
+/* header: only the logo, the theme switch and Vultr; the status pills are gone */
+#pSandbox, #pAgent, #pSpend { display: none !important; }

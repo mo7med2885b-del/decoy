@@ -497,3 +497,6 @@ async function runInspectAI() {  // plain-words AI summary of the captured netwo
 }
 
 document.addEventListener('DOMContentLoaded', () => { const n = document.getElementById('rebarnew'); if (n) n.onclick = () => { document.body.dataset.stage = 'idle'; delete document.body.dataset.first; document.getElementById('url').value = ''; window.scrollTo({top: 0, behavior: 'smooth'}); document.getElementById('url').focus(); }; });
+
+// the browser must not remember what was pasted: a field with a new random name each load has no history to suggest from
+document.addEventListener('DOMContentLoaded', () => { const u = document.getElementById('url'); if (u) { u.name = 'u' + Math.random().toString(36).slice(2); u.setAttribute('autocomplete', 'off'); } });

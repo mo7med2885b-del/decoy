@@ -40,9 +40,9 @@
     <div class="rebar" id="rebar"><span class="rebar-l">Checking</span><b id="rebarurl"></b><button type="button" class="rebar-new" id="rebarnew">New scan</button></div>
     <section class="intake hero" id="intake">
       <h1 class="hero-h">Not sure about that link?<span><b>/</b>Let <em class="gword">Decoy</em> click first.</span></h1>
-      <form id="form" class="spill">
+      <form id="form" class="spill" autocomplete="off">
         <svg class="pill-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input id="url" type="text" placeholder="Paste a link from an email, WhatsApp or text" autocomplete="off" spellcheck="false">
+        <input id="url" type="text" placeholder="Paste a link from an email, WhatsApp or text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore>
         <button class="pill-go" type="submit" id="go" aria-label="Open it safely"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
       </form>
       <div class="depth hidden" id="depth" role="dialog" aria-label="How deep should Decoy go?">
