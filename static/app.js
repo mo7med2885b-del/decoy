@@ -368,7 +368,7 @@ function handle(ev) {
       count.steps++; stat('sSteps', count.steps);
       $('addr').textContent = ev.url || '';
       if (ev.shot) {
-        $('shot').src = ev.shot;
+        $('shot').src = ev.shot; document.body.dataset.first = 'browser'; document.body.dataset.first = 'browser';
         const t = document.createElement('img');
         t.src = ev.shot; t.title = `Step ${ev.step}: ${ev.title || ''}`;
         t.dataset.full = ev.full || ev.shot;
