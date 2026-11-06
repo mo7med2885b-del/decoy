@@ -33,7 +33,7 @@ def env_int_s(key: str, default: int) -> int:
         return default
 
 
-MAX_ACTIONS = 4
+MAX_ACTIONS = 3
 SUBMIT_WORDS = re.compile(r"sign|log ?in|continue|verify|confirm|next|submit|unlock|pay|claim|download|view|open|start", re.I)
 
 PLANNER_SYSTEM = """You are the explorer agent inside Decoy, a sealed sandbox browser that tests suspicious links.
@@ -131,7 +131,7 @@ def page_brief(state: dict) -> str:
 def model_plan(budget: Budget, state: dict, history: list[str]) -> dict | None:
     user = (f"Actions so far: {history or 'none'}\n<PAGE>\n{page_brief(state)}\n</PAGE>\nThe screenshot shows the page. "
             "Choose the next action.")
-    shot = state.get("screenshot") if env("DECOY_VISION", "1") == "1" else None
+    shot = state.get("screenshot") if env("DECOY_VISION", "1") == "1" and not history else None  # a picture only for the first look: later steps are faster on text
     text = llm.chat(budget, PLANNER_SYSTEM, user, image_b64=shot, model=env("DECOY_VISION_MODEL") or None)
     return valid_action(llm.parse_json(text), state.get("page") or {})
 
@@ -199,7 +199,7 @@ def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, 
         state = sb.send({"cmd": "open", "url": url, "canary": canary, "persona": persona,
                          "demo_ip": ("127.0.0.1" if sb.mode == "local" else "host-gateway") if demo else None,
                          "demo_suffix": DEMO_SUFFIX if demo else None}, timeout=75, on_frame=on_frame)
-        t_end = time.time() + env_int_s("EXPLORE_SECONDS", 35)
+        t_end = time.time() + env_int_s("EXPLORE_SECONDS", 18)
         for step in range(max_actions + 1):
             if step > 0 and time.time() > t_end:
                 break  # enough has been seen: the rest of the scan must not wait for a slow page

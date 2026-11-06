@@ -327,6 +327,9 @@ def cloaking(personas: list[dict]) -> dict | None:
     visitors (for example a harmless page to a security bot and a login form to a person) is cloaking.
     personas: [{"name", "sig": (title, asked_password) or None}]"""
     seen = [p for p in personas if p.get("sig") and p["sig"][0] is not None]  # only visitors that really loaded the page
+    # a visitor held at a bot-check, a block page or an error page did not see the site at all: that is bot protection, not cloaking
+    blocked = re.compile(r"(?i)just a moment|attention required|access denied|forbidden|blocked|verify you are|are you a robot|captcha|security check|checking your browser|error 4\d\d|40[134]|unavailable")
+    seen = [p for p in seen if not (reputation.INTERSTITIAL.search(p["sig"][0] or "") or blocked.search(p["sig"][0] or ""))]
     if len(seen) < 2:
         return None
     pw = {p["name"] for p in seen if p["sig"][1]}

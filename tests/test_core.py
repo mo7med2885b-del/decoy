@@ -219,7 +219,7 @@ def test_geo_demo_hosts_are_simulated_and_private_addresses_never_looked_up():
 
 def test_title_difference_alone_is_not_cloaking_and_gates_are_reported_as_limits():
     from decoy.verdict import cloaking
-    c = cloaking([{"name": "Laptop", "sig": ("error 404", False)}, {"name": "Phone", "sig": ("kfc menu", False)}])
+    c = cloaking([{"name": "Laptop", "sig": ("kfc home", False)}, {"name": "Phone", "sig": ("kfc menu", False)}])
     assert c["kind"] == "visitor_difference" and c["weight"] < 10
     ev = Evidence("https://shop.example/", [])
     ev.add_state({"url": "https://shop.example/", "title": "Shop", "page": {"gate": "captcha"}, "network": []}, 0)
@@ -360,3 +360,11 @@ def test_hosted_signin_service_is_not_stolen_credentials_and_pdf_builds():
     assert not any(e["kind"] == "credentials_sent_elsewhere" for e in v["evidence"]) and v["level"] not in ("SUSPICIOUS", "DANGEROUS")
     pdf = pdfreport.build("t1", "http://app.example.org/", {**v, "summary": "s", "swarm": [], "attacker_got": [], "exfil_geo": []}, None, Path("nonexistent-folder"))
     assert pdf[:4] == b"%PDF"
+
+
+def test_bot_check_page_is_not_cloaking():
+    from decoy.verdict import cloaking
+    c = cloaking([{"name": "Laptop", "sig": ("Sign in - Example", True)}, {"name": "Security bot", "sig": ("Just a moment...", False)}, {"name": "Phone", "sig": ("Sign in - Example", True)}])
+    assert c is None
+    c2 = cloaking([{"name": "Laptop", "sig": ("VoltPay", True)}, {"name": "Security bot", "sig": ("Spring Sale", False)}])
+    assert c2 and c2["kind"] == "cloaking"
