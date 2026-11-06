@@ -339,3 +339,12 @@ def test_inspect_ai_counts_facts_and_flags_weird_things_by_rules():
     lv = {n["level"] for n in notes}
     assert f["requests"] == 4 and f["carried_fake_data"] == 1 and f["blocked"] == 1 and f["obfuscated_scripts"] == 1 and "warn" in lv
     assert inspect_ai.rules_only(data)["by"] == "rules"
+
+
+def test_young_domain_alone_is_not_suspicious_but_counts_with_other_signals():
+    ev = Evidence("https://new-event.example/", [{"kind": "new_domain", "weight": 25, "text": "The domain new-event.example was registered only 16 day(s) ago."}])
+    ev.add_state({"url": "https://new-event.example/", "title": "AI Hackathon", "page": {"visible_text": "Join the event " * 20}, "network": []}, 0)
+    assert ev.verdict()["level"] not in ("SUSPICIOUS", "DANGEROUS")
+    ev2 = Evidence("https://new-event.example/", [{"kind": "new_domain", "weight": 25, "text": "x"}, {"kind": "free_hosting", "weight": 15, "text": "y"}])
+    ev2.add_state({"url": "https://new-event.example/", "title": "t", "page": {"visible_text": "Join " * 20}, "network": []}, 0)
+    assert ev2.verdict()["level"] in ("SUSPICIOUS", "DANGEROUS")
