@@ -40,7 +40,7 @@ Choose ONE next action and answer with JSON only:
 {"action":"done","reason":"<short>"}
 Prefer: fill and submit forms that ask for credentials or payment; click buttons that lead deeper (verify, sign in,
 download, view invoice, claim). Choose done when the page has nothing more to reveal.
-Hard rules: (1) If a sign-in or payment page belongs to a DIFFERENT organization than the site you started on (for example a "Sign in with Google / Microsoft / a company account" page), do NOT type into it: choose done. Never type into a real service. (2) Prefer forms on the starting site itself. (3) Do not click ads, downloads or links that leave the site unless the page is clearly a lure. (4) Fewer, meaningful steps beat many: stop once the page has shown what it does."""
+The page brief includes session_so_far: cookies and storage this visitor already holds, the forms it already submitted and the pages it has seen. Do not submit the same form twice; continue the flow instead.\nHard rules: (1) If a sign-in or payment page belongs to a DIFFERENT organization than the site you started on (for example a "Sign in with Google / Microsoft / a company account" page), do NOT type into it: choose done. Never type into a real service. (2) Prefer forms on the starting site itself. (3) Do not click ads, downloads or links that leave the site unless the page is clearly a lure. (4) Fewer, meaningful steps beat many: stop once the page has shown what it does."""
 
 SUMMARY_SYSTEM = """You write the verdict for Decoy, a tool that opens suspicious links in a sealed sandbox.
 Write 2 or 3 short sentences in plain, everyday words for a non-technical person: what the link does and what to do.
@@ -117,7 +117,8 @@ def page_brief(state: dict) -> str:
     p = state.get("page") or {}
     return json.dumps({"url": state.get("url"), "title": state.get("title"), "fields": p.get("fields", []),
                        "buttons": p.get("buttons", []), "links": p.get("links", [])[:15],
-                       "visible_text": (p.get("visible_text") or "")[:1500], "hidden_text": (p.get("hidden_text") or "")[:500]})
+                       "visible_text": (p.get("visible_text") or "")[:1500], "hidden_text": (p.get("hidden_text") or "")[:500],
+                       "session_so_far": state.get("session")})
 
 
 def model_plan(budget: Budget, state: dict, history: list[str]) -> dict | None:
@@ -150,9 +151,9 @@ WARM = WarmPool({"demo_ip": "host-gateway", "demo_suffix": DEMO_SUFFIX})
 
 PERSONAS = [
     {"id": "careless", "name": "Careless employee", "device": "Laptop · Chrome", "ua": None, "mobile": False, "locale": "en-US",
-     "viewport": {"width": 1280, "height": 800}, "lead": True},
+     "viewport": {"width": 1280, "height": 800}, "lead": True, "platform": "Win32", "cores": 8, "mem": 8, "touch": 0, "dpr": 1, "tz": "Europe/Berlin", "langs": ["en-US", "en"]},
     {"id": "phone", "name": "Phone user", "device": "iPhone · Safari", "ua": IPHONE_UA, "mobile": True, "locale": "en-GB",
-     "viewport": {"width": 390, "height": 844}},
+     "viewport": {"width": 390, "height": 844}, "platform": "iPhone", "cores": 6, "mem": 4, "touch": 5, "dpr": 3, "tz": "Europe/London", "langs": ["en-GB", "en"]},
     {"id": "bot", "name": "Security bot", "device": "Link scanner", "ua": "Mozilla/5.0 (compatible; LinkScanner/1.0; +https://example.invalid/bot)",
      "mobile": False, "locale": "en-US", "viewport": {"width": 1280, "height": 800}},
 ]

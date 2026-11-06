@@ -36,18 +36,19 @@ SCAN_JS = r"""
   document.querySelectorAll('input, textarea, select').forEach(el => {
     if (!visible(el) || ['hidden','submit','button','image','reset'].includes(el.type)) return;
     el.setAttribute('data-decoy-id', ++n);
-    out.fields.push({id: n, type: el.type || el.tagName.toLowerCase(), name: el.name || '', placeholder: el.placeholder || '',
+    const pos = e => { const r = e.getBoundingClientRect(); return {cx: Math.round(r.x + r.width / 2), cy: Math.round(r.y + r.height / 2), tag: e.tagName.toLowerCase()}; };
+    out.fields.push({id: n, ...pos(el), type: el.type || el.tagName.toLowerCase(), name: el.name || '', placeholder: el.placeholder || '',
                      label: label(el).slice(0, 80), autocomplete: el.autocomplete || ''});
   });
   document.querySelectorAll('button, input[type=submit], input[type=button], [role=button]').forEach(el => {
     if (!visible(el)) return;
     el.setAttribute('data-decoy-id', ++n);
-    out.buttons.push({id: n, text: (el.innerText || el.value || '').trim().slice(0, 60)});
+    out.buttons.push({id: n, ...(() => { const r = el.getBoundingClientRect(); return {cx: Math.round(r.x + r.width / 2), cy: Math.round(r.y + r.height / 2), tag: el.tagName.toLowerCase()}; })(), text: (el.innerText || el.value || '').trim().slice(0, 60)});
   });
   document.querySelectorAll('a[href]').forEach(el => {
     if (!visible(el) || out.links.length >= 25) return;
     el.setAttribute('data-decoy-id', ++n);
-    out.links.push({id: n, text: el.innerText.trim().slice(0, 60), href: el.href.slice(0, 200)});
+    out.links.push({id: n, ...(() => { const r = el.getBoundingClientRect(); return {cx: Math.round(r.x + r.width / 2), cy: Math.round(r.y + r.height / 2), tag: 'a'}; })(), text: el.innerText.trim().slice(0, 60), href: el.href.slice(0, 200)});
   });
   // Text a person cannot see (hidden, transparent or tiny) is where pages hide orders for AI agents.
   const hidden = [];
@@ -95,6 +96,52 @@ CURSOR_JS = r"""
 """
 
 
+
+# Finds the element that best matches what was remembered about an old one (text, name, placeholder, link target, kind, place on the page).
+REFIND_JS = r"""
+(d) => {
+  const norm = s => (s || '').toString().trim().toLowerCase().replace(/\s+/g, ' ');
+  const vis = el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 2 && r.height > 2 && s.visibility !== 'hidden' && s.display !== 'none'; };
+  const path = h => { try { return new URL(h, location.href).pathname; } catch (e) { return ''; } };
+  let best = null, bestScore = 0;
+  document.querySelectorAll('input, textarea, select, button, [role=button], a[href]').forEach(el => {
+    if (!vis(el) || ['hidden', 'submit-hidden'].includes(el.type)) return;
+    const r = el.getBoundingClientRect(); const text = norm(el.innerText || el.value);
+    let s = 0;
+    if (d.text && text) { if (text === norm(d.text)) s += 4; else if (text.includes(norm(d.text)) || norm(d.text).includes(text)) s += 2; }
+    if (d.name && norm(el.name) === norm(d.name)) s += 3;
+    if (d.placeholder && norm(el.placeholder) === norm(d.placeholder)) s += 3;
+    if (d.type && norm(el.type || el.tagName) === norm(d.type)) s += 1;
+    if (d.href && el.href && path(el.href) === path(d.href)) s += 3;
+    if (d.tag && el.tagName.toLowerCase() === d.tag) s += 1;
+    const dist = Math.hypot(r.x + r.width / 2 - (d.cx || 0), r.y + r.height / 2 - (d.cy || 0));
+    s -= Math.min(2, dist / 400);
+    if (s > bestScore) { bestScore = s; best = el; }
+  });
+  if (!best || bestScore < 4) return false;
+  document.querySelectorAll('[data-decoy-id="' + d.id + '"]').forEach(e => e.removeAttribute('data-decoy-id'));
+  best.setAttribute('data-decoy-id', d.id);
+  return true;
+}
+"""
+
+# Marks the moment the page last changed, so the runner can wait until it has really settled instead of sleeping a fixed time.
+SETTLE_INIT = """
+(() => { window.__dcyLast = performance.now(); try { new MutationObserver(() => { window.__dcyLast = performance.now(); })
+  .observe(document, {subtree: true, childList: true, attributes: true, characterData: true}); } catch (e) {} })();
+"""
+
+
+def identity_js(per: dict) -> str:
+    """One device, told consistently: platform, language, cores, memory and touch points agree with the user agent we send. Nothing here hides that the browser is automated."""
+    if not per.get("platform"):
+        return ""
+    langs = per.get("langs") or [per.get("locale") or "en-US"]
+    return ("(() => { const d = (k, v) => { try { Object.defineProperty(Navigator.prototype, k, {get: () => v}); } catch (e) {} };"
+            f" d('platform', {per['platform']!r}); d('hardwareConcurrency', {int(per.get('cores', 8))}); d('deviceMemory', {int(per.get('mem', 8))});"
+            f" d('maxTouchPoints', {int(per.get('touch', 0))}); d('languages', {list(langs)!r}); d('language', {langs[0]!r}); }})();")
+
+
 def emit(obj):
     # Written in 16 KB pieces: under gVisor one big write to the pipe is cut at 64 KB and a large page never arrives.
     s = json.dumps(obj) + "\n"
@@ -130,6 +177,7 @@ class Runner:
         self.demo_suffix = None
         self.requests_seen = 0
         self.lead = True
+        self.memory, self.inflight, self.forms, self.pages = {}, 0, [], []
         self.redirects = []
         self.console = []
         self.status = {}
@@ -170,9 +218,14 @@ class Runner:
                                        user_agent=per.get("ua") or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                                                                    "(KHTML, like Gecko) Chrome/130.0 Safari/537.36",
                                        is_mobile=bool(per.get("mobile")), has_touch=bool(per.get("mobile")),
-                                       locale=per.get("locale") or "en-US")
+                                       locale=per.get("locale") or "en-US", device_scale_factor=per.get("dpr", 1),
+                                       timezone_id=per.get("tz") or None,
+                                       extra_http_headers={"Accept-Language": ",".join(per.get("langs") or [])} if per.get("langs") else None)
         ctx.route("**/*", self._route)
         ctx.add_init_script(CURSOR_JS)
+        ctx.add_init_script(SETTLE_INIT)
+        if identity_js(per):
+            ctx.add_init_script(identity_js(per))
         self.ctx = ctx
         ctx.on("page", self._watch)
         self.page = ctx.new_page()
@@ -199,6 +252,9 @@ class Runner:
     def _watch(self, page):
         self.page = page  # follow pop-ups and new tabs
         page.on("download", self._download)
+        page.on("request", lambda r: setattr(self, "inflight", self.inflight + 1))
+        page.on("requestfinished", lambda r: setattr(self, "inflight", max(0, self.inflight - 1)))
+        page.on("requestfailed", lambda r: setattr(self, "inflight", max(0, self.inflight - 1)))
         page.on("response", self._response)
         page.on("console", lambda m: len(self.console) < 80 and self.console.append({"type": m.type, "text": m.text[:300]}))
         page.on("pageerror", lambda e: len(self.console) < 80 and self.console.append({"type": "error", "text": str(e)[:300]}))
@@ -269,7 +325,7 @@ class Runner:
 
     # ---- observation -------------------------------------------------------
     def state(self, note=None):
-        self.page.wait_for_timeout(400)  # lets the browser deliver events (time.sleep would not)
+        self.settle(300, 1500)  # the page has stopped changing (or the cap is reached)
         for _ in range(3):  # bot-check and loading screens often finish by themselves: give the real page a few seconds
             try:
                 title = self.page.title() or ""
@@ -326,10 +382,46 @@ class Runner:
             ttl = (self.page.title() or "")[:150]
         except Exception:  # the page was navigating or closed under us: a title is not worth failing the step
             ttl = ""
-        return {"ok": True, "url": self.page.url[:500], "title": ttl, "screenshot": shot, "full": full or shot,
+        for k in ("fields", "buttons", "links"):
+            for it in (info.get(k) or []):
+                self.memory[it["id"]] = {kk: it.get(kk) for kk in ("text", "name", "placeholder", "type", "href", "tag", "cx", "cy")}
+        if not self.pages or self.pages[-1] != self.page.url[:80]:
+            self.pages.append(self.page.url[:80])
+        return {"ok": True, "session": self.session_note(), "url": self.page.url[:500], "title": ttl, "screenshot": shot, "full": full or shot,
                 "page": info, "network": net, "downloads": dls, "dialogs": dlg, "note": note, "redirects": self.redirects[:12], "console": con, "cookies": cookies}
 
     # ---- live frames + a visible cursor, so a person can watch the agent work ----
+    def settle(self, quiet=350, cap=3000):
+        """Wait until the page has really stopped changing (no new requests in flight, no page changes for `quiet` ms), at most `cap` ms."""
+        t0 = time.time()
+        while (time.time() - t0) * 1000 < cap:
+            try:
+                idle = self.page.evaluate("performance.now() - (window.__dcyLast || 0)")
+            except Exception:
+                idle = quiet
+            if self.inflight <= 1 and idle >= quiet:
+                return
+            self.page.wait_for_timeout(120)
+
+    def refind(self, element_id: int) -> bool:
+        """The page was redrawn and the element's number is gone: find it again from what we remembered about it."""
+        d = self.memory.get(int(element_id))
+        if not d:
+            return False
+        try:
+            return bool(self.page.evaluate(REFIND_JS, {**d, "id": int(element_id)}))
+        except Exception:
+            return False
+
+    def session_note(self) -> dict:
+        """What this visitor carries from step to step: cookies, stored keys, the forms it submitted, the pages it saw."""
+        try:
+            cookies = len(self.ctx.cookies())
+            keys = self.page.evaluate("Object.keys(localStorage).length + Object.keys(sessionStorage).length")
+        except Exception:
+            cookies, keys = 0, 0
+        return {"cookies": cookies, "storage_keys": keys, "forms_submitted": self.forms[-4:], "pages": self.pages[-6:]}
+
     def frame(self):
         """Send one small live screenshot before the command's final answer (control plane streams it)."""
         try:
@@ -356,7 +448,13 @@ class Runner:
         return loc
 
     def press(self, selector):
-        loc = self.move_to(selector)
+        try:
+            loc = self.move_to(selector)
+        except Exception:
+            m = re.search(r'data-decoy-id="(\d+)"', selector)
+            if not (m and self.refind(int(m.group(1)))):
+                raise
+            loc = self.move_to(selector)
         self.page.mouse.down()
         self.frame()
         self.page.mouse.up()
@@ -376,6 +474,7 @@ class Runner:
                     self.frame()
             except Exception:
                 pass
+        self.forms.append({"on": self.page.url[:80], "typed": [f.get("value") for f in msg.get("fields", [])]})
         sub = msg.get("submit_id")
         try:
             if sub:
@@ -384,9 +483,9 @@ class Runner:
                 self.page.keyboard.press("Enter")
         except Exception as e:
             return self.state(note=f"submit failed: {str(e)[:100]}")
-        self.page.wait_for_timeout(700)
+        self.page.wait_for_timeout(150)
         self.frame()
-        self.page.wait_for_timeout(800)
+        self.settle(300, 2800)
         return self.state()
 
     def click(self, msg):
@@ -394,9 +493,9 @@ class Runner:
             self.press(f'[data-decoy-id="{int(msg["id"])}"]')
         except Exception as e:
             return self.state(note=f"click failed: {str(e)[:100]}")
-        self.page.wait_for_timeout(700)
+        self.page.wait_for_timeout(150)
         self.frame()
-        self.page.wait_for_timeout(800)
+        self.settle(300, 2800)
         return self.state()
 
     def close(self):
