@@ -683,3 +683,13 @@ body[data-stage="run"] #globecard { order: 2 !important; }
 .desk, .desk .df, .desk .df li, .desk .dh { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
 .desks { align-items: start; } .desk .df li { hyphens: auto; }
 .pdfrow { margin: 12px 0 2px; } .pdfrow .btn { text-decoration: none; background: #0b1530; color: #fff; border-color: #0b1530; font-weight: 800; padding: 12px 22px; display: inline-block; }
+
+/* ---- v23: a cleaner header: logo and wordmark side by side, theme switch and Vultr on the right ---- */
+.frame-top { display: flex !important; align-items: center; gap: 14px; padding: 16px 28px 8px !important; position: relative; }
+.logo { width: 54px !important; height: 54px !important; background: transparent !important; box-shadow: none !important; padding: 0; flex: none; }
+.logo img { width: 54px; height: 54px; border-radius: 50%; display: block; box-shadow: 0 6px 18px rgba(31, 99, 240, .28); }
+.titletab { background: none !important; height: auto !important; padding: 0 !important; border-radius: 0 !important; display: flex; align-items: center; }
+.titletab::after { display: none !important; }
+.titletab h1 { font-size: 30px; font-weight: 800; letter-spacing: -.045em; line-height: 1; }
+.frame-top .pills { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+@media (max-width: 700px) { .frame-top { padding: 12px 16px 6px !important; } .logo, .logo img { width: 42px !important; height: 42px !important; } .titletab h1 { font-size: 24px; } }
