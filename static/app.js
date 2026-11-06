@@ -161,11 +161,12 @@ async function investigate() {
 function openShot(src, cap) {
   if (!src) return; $('lbimg').src = src; $('lbopen').href = src; $('lbcap').textContent = cap || ''; $('lightbox').classList.remove('hidden'); $('lightbox').querySelector('.lbscroll').scrollTop = 0;
 }
-const DT = {net: new Set(), js: new Set(), con: 0};
+const DT = {net: new Set(), js: new Set(), con: 0, raw: {net: [], con: [], ck: [], js: []}, aiFor: -1};
 function devtools(ev) {
   $('devcard').classList.remove('hidden');
   (ev.network || []).forEach(n => {
     const key = n.method + n.url; if (DT.net.has(key)) return; DT.net.add(key);
+    DT.raw.net.push({host: n.host, type: n.type, status: n.status, blocked: !!n.blocked, leak: !!n.leak, method: n.method});
     let path = n.url; try { const u = new URL(n.url); path = u.pathname + u.search; } catch (e) {}
     const tr = document.createElement('tr'); tr.className = n.leak ? 'leak' : n.blocked ? 'blk' : '';
     tr.innerHTML = `<td>${esc(n.method)}</td><td><b>${esc(n.host)}</b><span class="pth">${esc(path.slice(0, 80))}</span></td><td>${esc(n.type)}</td><td>${n.blocked ? '—' : esc(n.status ?? '')}</td>`
@@ -174,10 +175,11 @@ function devtools(ev) {
     $('dtnet').appendChild(tr);
   });
   $('dn').textContent = DT.net.size;
-  (ev.console || []).forEach(c => { DT.con++; const li = document.createElement('li'); li.className = c.type; li.innerHTML = `<i>${esc(c.type)}</i>${esc(c.text)}`; $('dtcon').appendChild(li); });
+  (ev.console || []).forEach(c => { DT.raw.con.push({type: c.type, text: String(c.text || '').slice(0, 200)}); DT.con++; const li = document.createElement('li'); li.className = c.type; li.innerHTML = `<i>${esc(c.type)}</i>${esc(c.text)}`; $('dtcon').appendChild(li); });
   $('dc').textContent = DT.con;
+  if ((ev.cookies || []).length) { DT.raw.ck = ev.cookies.map(c => ({name: c.name, domain: c.domain, secure: !!c.secure, httpOnly: !!c.httpOnly})); }
   if ((ev.cookies || []).length) { $('dtck').innerHTML = ev.cookies.map(c => `<tr class="${c.secure && c.httpOnly ? '' : 'blk'}"><td><b>${esc(c.name)}</b></td><td>${esc(c.domain)}</td><td>${c.secure ? 'yes' : 'no'}</td><td>${c.httpOnly ? 'yes' : 'no'}</td><td>${esc(c.sameSite || '-')}</td></tr>`).join(''); $('dk').textContent = ev.cookies.length; }
-  (ev.scripts || []).forEach(s => { if (DT.js.has(s)) return; DT.js.add(s); const d = document.createElement('div'); d.className = 'js'; d.innerHTML = `<small>inline script</small><pre>${esc(s)}</pre>`; $('dtjs').appendChild(d); });
+  (ev.scripts || []).forEach(s => { if (DT.js.has(s)) return; DT.js.add(s); DT.raw.js.push(String(s).slice(0, 1500)); const d = document.createElement('div'); d.className = 'js'; d.innerHTML = `<small>inline script</small><pre>${esc(s)}</pre>`; $('dtjs').appendChild(d); });
   (ev.script_srcs || []).forEach(s => { if (DT.js.has(s)) return; DT.js.add(s); const d = document.createElement('div'); d.className = 'js'; d.innerHTML = `<small>external script</small><pre>${esc(s)}</pre>`; $('dtjs').appendChild(d); });
   $('dj').textContent = DT.js.size;
 }
@@ -250,7 +252,7 @@ async function init() {
   };
   $('cancel').onclick = () => scanId && fetch(`/api/scan/${scanId}/cancel`, {method: 'POST'});
   document.querySelectorAll('.decide button').forEach(b => b.onclick = () => decide(b.dataset.d));
-  document.querySelectorAll('#dtabs button').forEach(b => b.onclick = () => { document.querySelectorAll('#dtabs button').forEach(x => x.classList.toggle('on', x === b)); document.querySelectorAll('.dpane').forEach(p => p.classList.toggle('hidden', p.id !== 'dp-' + b.dataset.t)); });
+  document.querySelectorAll('#dtabs button').forEach(b => b.onclick = () => { if (b.dataset.t === 'ai') runInspectAI(); document.querySelectorAll('#dtabs button').forEach(x => x.classList.toggle('on', x === b)); document.querySelectorAll('.dpane').forEach(p => p.classList.toggle('hidden', p.id !== 'dp-' + b.dataset.t)); });
   $('shot').onclick = () => $('shot').dataset.full && openShot($('shot').dataset.full, $('shot').dataset.cap);
   $('lbclose').onclick = () => $('lightbox').classList.add('hidden'); $('lightbox').onclick = e => { if (e.target.id === 'lightbox') $('lightbox').classList.add('hidden'); };
   addEventListener('keydown', e => { if (e.key === 'Escape') $('lightbox').classList.add('hidden'); });
@@ -275,7 +277,7 @@ function reset() {
   evCount = 0; $('invcard').classList.add('hidden'); $('desks').innerHTML = ''; $('report').classList.add('hidden'); $('invbar').classList.add('hidden');
   WF.reset(); try { GLB.reset(); } catch (e) {}
   $('dchat').innerHTML = ''; $('dvotes').classList.add('hidden'); $('debatecard').classList.add('hidden'); DQ.t = 0;
-  DT.net.clear(); DT.js.clear(); DT.con = 0; ['dtnet', 'dtcon', 'dtck', 'dtjs'].forEach(i => $(i).innerHTML = ''); ['dn', 'dc', 'dk', 'dj'].forEach(i => $(i).textContent = 0); $('devcard').classList.add('hidden'); $('dtpost').classList.add('hidden'); $('lightbox').classList.add('hidden'); buildSwarm([]); $('memory').classList.add('hidden'); $('askbox').classList.add('hidden'); $('askout').classList.add('hidden'); $('askout').textContent = '';
+  DT.net.clear(); DT.js.clear(); DT.con = 0; DT.raw = {net: [], con: [], ck: [], js: []}; DT.aiFor = -1; $('dp-ai').innerHTML = '<p class="small">Open this tab after the scan to get a plain-words summary of what the page did in the background.</p>'; ['dtnet', 'dtcon', 'dtck', 'dtjs'].forEach(i => $(i).innerHTML = ''); ['dn', 'dc', 'dk', 'dj'].forEach(i => $(i).textContent = 0); $('devcard').classList.add('hidden'); $('dtpost').classList.add('hidden'); $('lightbox').classList.add('hidden'); buildSwarm([]); $('memory').classList.add('hidden'); $('askbox').classList.add('hidden'); $('askout').classList.add('hidden'); $('askout').textContent = '';
   Object.keys(count).forEach(k => count[k] = 0);
   stat('sSteps', 0); stat('sBlocked', 0); stat('sLeaks', 0); stat('sCalls', 0);
   queue.length = 0;
@@ -297,7 +299,7 @@ async function start() {
     const j = await r.json();
     if (!r.ok) { $('err').textContent = j.detail || 'Could not start.'; $('go').disabled = false; return; }
     scanId = j.id; reset(); geoSeen = false;
-    document.body.dataset.stage = 'run'; document.body.dataset.first = 'globe';  // the world view leads when the link's server can be located
+    document.body.dataset.stage = 'run'; document.body.dataset.first = 'globe'; $('rebarurl').textContent = url.slice(0, 90);  // the world view leads when the link's server can be located
     setTimeout(() => { if (!geoSeen) document.body.dataset.first = 'browser'; }, 2200);  // otherwise the sealed browser leads, as soon as it streams
     ($('globecard') || $('run')).scrollIntoView({behavior: 'smooth', block: 'start'});
     if (source) source.close();
@@ -474,3 +476,24 @@ async function decide(d) {
 
 init();
 
+
+async function runInspectAI() {  // plain-words AI summary of the captured network, console, cookies and scripts
+  const box = $('dp-ai'), size = DT.raw.net.length + DT.raw.con.length + DT.raw.ck.length + DT.raw.js.length;
+  if (!size) { box.innerHTML = '<p class="small">Nothing was captured yet. Run a scan first.</p>'; return; }
+  if (DT.aiFor === size) return;
+  DT.aiFor = size;
+  box.innerHTML = '<div class="aisk"><i></i><i></i><i></i></div><p class="small">Reading what the page did in the background…</p>';
+  let host = ''; try { host = new URL(($('addr').textContent.startsWith('http') ? $('addr').textContent : 'http://' + $('url').value.replace(/^https?:\/\//, ''))).hostname; } catch (e) {}
+  try {
+    const r = await fetch('/api/inspect-ai', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({host, ...DT.raw})});
+    const j = await r.json(); if (!r.ok) throw new Error(j.detail || 'failed');
+    const lvl = {warn: ['warn', 'Could be harmful'], watch: ['watch', 'Keep an eye on it'], info: ['info', 'Good to know']};
+    const f = j.facts || {};
+    const chips = [['requests', f.requests], ['servers', f.hosts], ['cookies', f.cookies], ['scripts', f.scripts], ['trackers', f.trackers], ['blocked', f.blocked]].map(([k, v]) => `<span class="aichip"><b>${esc(v ?? 0)}</b> ${k}</span>`).join('');
+    box.innerHTML = `<div class="aisum"><span class="aibadge">AI summary</span><p>${esc(j.summary)}</p></div>`
+      + `<ul class="ainotes">${(j.notes || []).map(n => `<li class="${(lvl[n.level] || lvl.info)[0]}"><i></i><div><b>${(lvl[n.level] || lvl.info)[1]}</b><span>${esc(n.text)}</span></div></li>`).join('')}</ul>`
+      + `<div class="aichips">${chips}</div><p class="small">${j.by === 'rules' ? 'Written by rules (no model answered).' : 'Written by ' + esc(j.by) + '.'} Every number is counted by code; a model never changes a warning.</p>`;
+  } catch (e) { box.innerHTML = '<p class="small">The summary could not be made right now. The data above is complete.</p>'; DT.aiFor = -1; }
+}
+
+document.addEventListener('DOMContentLoaded', () => { const n = document.getElementById('rebarnew'); if (n) n.onclick = () => { document.body.dataset.stage = 'idle'; delete document.body.dataset.first; document.getElementById('url').value = ''; window.scrollTo({top: 0, behavior: 'smooth'}); document.getElementById('url').focus(); }; });

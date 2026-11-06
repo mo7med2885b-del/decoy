@@ -37,6 +37,7 @@
       <i class="steps-fill" id="stepsFill"></i>
     </ol>
 
+    <div class="rebar" id="rebar" hidden><span class="rebar-l">Checking</span><b id="rebarurl"></b><button type="button" class="rebar-new" id="rebarnew">New scan</button></div>
     <section class="intake hero" id="intake">
       <h1 class="hero-h">Not sure about that link?<span><b>/</b>Let <em class="gword">Decoy</em> click first.</span></h1>
       <form id="form" class="spill">
@@ -145,11 +146,12 @@
 
           <section class="card hidden" id="devcard">
             <h3>Behind the page <small class="small">what a browser's developer tools would show, captured inside the sandbox</small></h3>
-            <div class="dtabs" id="dtabs"><button type="button" data-t="net" class="on">Network <b id="dn">0</b></button><button type="button" data-t="con">Console <b id="dc">0</b></button><button type="button" data-t="ck">Cookies <b id="dk">0</b></button><button type="button" data-t="js">Scripts <b id="dj">0</b></button></div>
+            <div class="dtabs" id="dtabs"><button type="button" data-t="net" class="on">Network <b id="dn">0</b></button><button type="button" data-t="con">Console <b id="dc">0</b></button><button type="button" data-t="ck">Cookies <b id="dk">0</b></button><button type="button" data-t="js">Scripts <b id="dj">0</b></button><button type="button" data-t="ai" class="aitab">✦ AI summary</button></div>
             <div class="dpane" id="dp-net"><div class="tw"><table class="dt"><thead><tr><th>Method</th><th>Host and path</th><th>Type</th><th>Status</th><th></th></tr></thead><tbody id="dtnet"></tbody></table></div><pre class="dpost hidden" id="dtpost"></pre></div>
             <div class="dpane hidden" id="dp-con"><ul class="dcon" id="dtcon"></ul></div>
             <div class="dpane hidden" id="dp-ck"><div class="tw"><table class="dt"><thead><tr><th>Name</th><th>Domain</th><th>Secure</th><th>HttpOnly</th><th>SameSite</th></tr></thead><tbody id="dtck"></tbody></table></div></div>
             <div class="dpane hidden" id="dp-js"><div id="dtjs"></div></div>
+            <div class="dpane hidden" id="dp-ai"><p class="small">Open this tab after the scan to get a plain-words summary of what the page did in the background.</p></div>
           </section>
 
           <div class="grid3">

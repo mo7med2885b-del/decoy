@@ -595,3 +595,39 @@ body[data-stage="run"][data-first="browser"] #run { order: 0; }
 .hero-h b { -webkit-text-fill-color: #f26a0a; color: #f26a0a; }
 .gword { font-style: normal; background: linear-gradient(100deg, #1f63f0 0%, #2d6bff 30%, #ff7a1a 70%, #f26a0a 100%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; animation: gword 7s ease-in-out infinite alternate; padding-right: .04em; }
 @keyframes gword { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+
+/* ---- v13: the first screen is only the hero; the globe and the workflow start below the fold ---- */
+body:not([data-stage="run"]) .hero { min-height: calc(100vh - 70px); align-content: center; padding-top: 0; padding-bottom: 60px; margin-bottom: 24px; }
+
+#wfSvg .we.hid { opacity: 0 !important; }
+
+/* ---- v14: space between nodes ---- */
+.wf-stage { height: 2440px; } .wf-view { min-height: 2440px; }
+@media (max-width: 700px) { .wf-stage { height: 2440px; } .wf-view { min-height: 2440px; } }
+.wn:not(.chat):not(.orch):not(.core) { width: 154px; }
+
+/* ---- v15: AI summary tab in the inspector ---- */
+.dtabs .aitab { background: linear-gradient(100deg, rgba(45, 107, 255, .16), rgba(242, 106, 10, .18)); border-color: rgba(45, 107, 255, .4); font-weight: 800; }
+.dtabs .aitab.on { background: linear-gradient(100deg, #2d6bff, #f26a0a); color: #fff; border-color: transparent; }
+.aisum { padding: 16px 18px; border-radius: 18px; background: linear-gradient(135deg, rgba(45, 107, 255, .12), rgba(242, 106, 10, .10)); margin-bottom: 12px; }
+.aisum p { margin: 8px 0 0; font-size: 16px; line-height: 1.5; font-weight: 600; }
+.aibadge { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; padding: 3px 10px; border-radius: 99px; background: #2d6bff; color: #fff; }
+.ainotes { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.ainotes li { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: rgba(120, 150, 210, .10); }
+.ainotes li i { flex: none; width: 12px; height: 12px; border-radius: 50%; margin-top: 5px; background: #2d6bff; box-shadow: 0 0 0 4px rgba(45, 107, 255, .18); }
+.ainotes li.watch i { background: #f2a413; box-shadow: 0 0 0 4px rgba(242, 164, 19, .22); } .ainotes li.warn i { background: #f26a0a; box-shadow: 0 0 0 4px rgba(242, 106, 10, .25); } .ainotes li.warn { background: rgba(242, 106, 10, .12); }
+.ainotes li b { display: block; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; } .ainotes li span { font-size: 15px; line-height: 1.45; }
+.aichips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; } .aichip { padding: 6px 12px; border-radius: 99px; background: rgba(120, 150, 210, .14); font-size: 13px; } .aichip b { font-size: 15px; }
+.aisk { display: grid; gap: 10px; margin-bottom: 10px; } .aisk i { height: 18px; border-radius: 9px; background: linear-gradient(90deg, rgba(120, 150, 210, .12), rgba(120, 150, 210, .28), rgba(120, 150, 210, .12)); background-size: 200% 100%; animation: aisk 1.2s linear infinite; } .aisk i:nth-child(2) { width: 82%; } .aisk i:nth-child(3) { width: 60%; }
+@keyframes aisk { to { background-position: -200% 0; } }
+
+/* ---- v16: while a scan runs the hero is gone: a slim bar, the trust score first, then the world view ---- */
+.rebar { display: none; align-items: center; gap: 12px; margin: 6px 4px 12px; padding: 10px 14px 10px 20px; border-radius: 99px; background: #fff; color: #0b1530; box-shadow: 0 8px 26px rgba(31, 99, 240, .14), 0 0 0 2px rgba(31, 99, 240, .14); }
+:root:not([data-theme="light"]) .rebar { background: #0f1a33; color: #e9f0ff; box-shadow: 0 8px 26px rgba(0, 0, 0, .5), 0 0 0 2px rgba(91, 155, 255, .3); }
+body[data-stage="run"] .rebar { display: flex; } .rebar[hidden] { display: none !important; }
+.rebar-l { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); } .rebar b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; }
+.rebar-new { border: 0; cursor: pointer; font: inherit; font-weight: 800; font-size: 14px; padding: 10px 20px; border-radius: 99px; color: #fff; background: linear-gradient(100deg, #2d6bff, #f26a0a); }
+body[data-stage="run"] .hero { display: none !important; }
+body:not([data-stage="run"]) #run { display: none !important; }
+body[data-stage="run"] #run { display: contents; } body[data-stage="run"] #verdict { order: 0; } body[data-stage="run"] #globecard { order: 1; }
+body[data-stage="run"][data-first="browser"] #globecard { order: 3; }

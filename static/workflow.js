@@ -28,6 +28,7 @@ const WF = (() => {
     summary: [50, 1750, '🧠', 'Summary', 'GLM · plain words', 'model'],
     human: [83, 1750, '✓', 'Your decision', 'block · safe · dismiss', 'human'],
   };
+  Object.values(NODES).forEach(n => { n[1] = Math.round(n[1] * 1.28); });  // more air between the rows
   const EDGES = [['control', 'link', 'model'], ['link', 'check'], ['link', 'geo'], ['link', 'tls'], ['check', 'sandbox'], ['sandbox', 'v_careless', 'model'], ['sandbox', 'v_phone'], ['sandbox', 'v_bot'],
     ['v_careless', 'net'], ['v_careless', 'destroy'], ['v_phone', 'destroy'], ['v_bot', 'destroy'],
     ['destroy', 'script', 'model'], ['destroy', 'endpoints', 'model'], ['destroy', 'privacy', 'model'], ['script', 'lure', 'model'], ['endpoints', 'intel'], ['privacy', 'cloak'],
@@ -152,9 +153,14 @@ const WF = (() => {
     });
     drawArgues(); syncEdges();
   }
-  function syncEdges() {  // a line shows only when both of its nodes have appeared
-    document.querySelectorAll('#wfSvg .we').forEach(p => { if (!p.dataset.e) return; const [a, b] = p.dataset.e.split('>'); p.style.opacity = (el[a] && el[b] && !el[a].classList.contains('ghost') && !el[b].classList.contains('ghost')) ? '' : '0'; });
+  function syncEdges() {  // a line shows only when both of its nodes have appeared (a class, so no redraw can bring a stray line back)
+    const shown = (a, b) => el[a] && el[b] && !el[a].classList.contains('ghost') && !el[b].classList.contains('ghost');
+    document.querySelectorAll('#wfSvg .we').forEach(p => {
+      const [a, b] = p.dataset.e ? p.dataset.e.split('>') : [p.dataset.a, p.dataset.b];
+      p.style.opacity = ''; p.classList.toggle('hid', !shown(a, b));
+    });
   }
+
   const HUES = {script: 262, endpoints: 200, privacy: 160, lure: 24, intel: 330, cloak: 48, check: 210, geo: 180, tls: 120, lead: 285, orch: 42, v_careless: 12, v_phone: 190, v_bot: 90};
   const NAME = {lead: 'Review lead', orch: 'Orchestrator'};
   const escH = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
@@ -175,7 +181,7 @@ const WF = (() => {
   }
   let ARGUES = [];
   function drawArgues() {
-    ARGUES.forEach(g => { if (!el[g.a] || !el[g.b]) return; const p = document.createElementNS(NS, 'path'); p.setAttribute('d', pathD(g.a, g.b)); p.setAttribute('class', 'we argue ' + g.cls); $('wfSvg').appendChild(p); });
+    ARGUES.forEach(g => { if (!el[g.a] || !el[g.b]) return; const p = document.createElementNS(NS, 'path'); p.setAttribute('d', pathD(g.a, g.b)); p.setAttribute('class', 'we argue ' + g.cls); p.dataset.a = g.a; p.dataset.b = g.b; $('wfSvg').appendChild(p); });
   }
   function bubble(id, text, cls) {  // a speech bubble above an agent while it speaks in the debate
     if (!el[id]) return; const st = $('wfStage'), n = el[id];
@@ -229,7 +235,7 @@ const WF = (() => {
   function head(text, run) { $('wfState').textContent = text; $('wf').classList.toggle('run', !!run); }
 
   function reset() {
-    ARGUES = []; CRQ = Promise.resolve(); { const l = $('crList'); if (l) l.innerHTML = '<p class="cr-empty">The agents meet here after the visitors leave: they post findings, question each other, answer and vote.</p>'; }
+    ARGUES = []; document.querySelectorAll('#wfSvg .argue').forEach(x => x.remove()); CRQ = Promise.resolve(); { const l = $('crList'); if (l) l.innerHTML = '<p class="cr-empty">The agents meet here after the visitors leave: they post findings, question each other, answer and vote.</p>'; }
     if (!started) { started = true; build(); }
     T0 = performance.now(); destroyed = 0; expected = 1; Object.keys(hist).forEach(k => hist[k] = []);
     Object.entries(el).forEach(([id, n]) => { n.classList.remove('active', 'done', 'bad', 'pop'); n.classList.toggle('ghost', !START_VISIBLE.includes(id)); n.querySelector('.live').textContent = ''; n.title = ''; });

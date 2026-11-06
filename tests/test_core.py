@@ -325,3 +325,17 @@ def test_early_geo_endpoint_answers_without_a_scan():
     r = c.get("/api/geo", params={"url": "http://cloaked-promo.test:8601/"}).json()
     assert r["origin"]["label"].startswith("Vultr") and r["loc"]["simulated"] is True
     assert c.get("/api/geo", params={"url": "ftp://x.example/"}).json()["loc"] is None
+
+
+def test_inspect_ai_counts_facts_and_flags_weird_things_by_rules():
+    from decoy import inspect_ai
+    data = {"host": "shop.example.org", "net": [
+        {"host": "shop.example.org", "type": "document", "status": 200},
+        {"host": "drop-zone.test", "type": "fetch", "status": 200, "leak": True},
+        {"host": "browser.sentry-cdn.com", "type": "script", "status": 200},
+        {"host": "10.0.0.1", "type": "fetch", "blocked": True}],
+        "ck": [{"name": "sid", "domain": "shop.example.org", "secure": False, "httpOnly": False}], "con": [], "js": ["var a=atob('QQ==');eval(a)"]}
+    f, notes = inspect_ai.facts_and_notes(data)
+    lv = {n["level"] for n in notes}
+    assert f["requests"] == 4 and f["carried_fake_data"] == 1 and f["blocked"] == 1 and f["obfuscated_scripts"] == 1 and "warn" in lv
+    assert inspect_ai.rules_only(data)["by"] == "rules"

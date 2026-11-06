@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from decoy import ask as ask_mod
 from decoy import guard, investigate, llm, qr, store
 from decoy.agent import run_scan
-from decoy.config import DEMO_PORT, ROOT, RUNS, env, env_int
+from decoy.config import DEMO_PORT, ROOT, RUNS, env, env_float, env_int
 from decoy.sandbox import docker_ready, kill_scan
 from decoy.urlcheck import BadLink, normalize
 
@@ -65,6 +65,25 @@ def rate_limit(request: Request, kind: str, per_hour: int):
 @app.get("/")
 def index():
     return FileResponse(ROOT / "static" / "index.html", headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/inspect-ai")
+async def inspect_ai(request: Request):
+    """Plain-words AI summary of the 'Behind the page' data. One small-model call; the facts are counted by code."""
+    from decoy import inspect_ai
+    rate_limit(request, "inspect_ai", env_int("INSPECT_AI_PER_HOUR", 20))
+    raw = await request.body()
+    if len(raw) > 200_000:
+        raise HTTPException(413, "Too much data.")
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        raise HTTPException(400, "Not valid JSON.")
+    if not isinstance(data, dict):
+        raise HTTPException(400, "Expected an object.")
+    if guard.today()["usd"] >= env_float("MAX_USD_PER_DAY", 5.0) or env("KILL_SWITCH") == "1":
+        return inspect_ai.rules_only(data)  # the daily cap is reached: rules still answer, no model call
+    return await asyncio.to_thread(inspect_ai.analyze, data, guard.Budget())
 
 
 @app.get("/api/geo")
