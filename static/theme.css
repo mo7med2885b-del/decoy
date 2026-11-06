@@ -586,3 +586,12 @@ body[data-stage="run"] .hero::before, body[data-stage="run"] .hero::after { opac
 #threatcard { order: 2; } #histcard { order: 3; }
 body[data-stage="run"] #threatcard { order: 5; } body[data-stage="run"] #histcard { order: 6; }
 body[data-stage="run"][data-first="browser"] #run { order: 0; }
+
+/* ---- v12: the gradient lives on the word "Decoy" only ---- */
+.hero::before, .hero::after { display: none !important; }
+.hero { overflow: visible; border-radius: 0; }
+.hero-h { background: none !important; -webkit-background-clip: border-box !important; background-clip: border-box !important; color: #0b1530 !important; }
+:root:not([data-theme="light"]) .hero-h { color: #f2f6ff !important; }
+.hero-h b { -webkit-text-fill-color: #f26a0a; color: #f26a0a; }
+.gword { font-style: normal; background: linear-gradient(100deg, #1f63f0 0%, #2d6bff 30%, #ff7a1a 70%, #f26a0a 100%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; animation: gword 7s ease-in-out infinite alternate; padding-right: .04em; }
+@keyframes gword { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
