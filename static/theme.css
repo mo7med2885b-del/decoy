@@ -597,7 +597,7 @@ body[data-stage="run"][data-first="browser"] #run { order: 0; }
 @keyframes gword { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
 
 /* ---- v13: the first screen is only the hero; the globe and the workflow start below the fold ---- */
-body:not([data-stage="run"]) .hero { min-height: calc(100vh - 70px); align-content: center; padding-top: 0; padding-bottom: 60px; margin-bottom: 24px; }
+body:not([data-stage="run"]) .hero { min-height: calc(100vh - 100px); align-content: center; padding-top: 0; padding-bottom: 60px; margin-bottom: 24px; }
 
 #wfSvg .we.hid { opacity: 0 !important; }
 
