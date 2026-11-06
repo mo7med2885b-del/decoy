@@ -175,10 +175,11 @@ class Evidence:
             what = ", ".join(LABELS.get(k, k.lower()) for k in sorted(kinds))
             if is_telemetry(dest):
                 items.append({"kind": "telemetry_leak", "weight": 12, "text": f"What was typed also reached an analytics or error-monitoring service ({dest}). That is common and not theft, but it means typed text can be recorded."})
-            elif site(dest) != start_site and not (set(kinds) & SENSITIVE) and is_shared_backend(dest):
-                # an email, name or phone sent to a shared form backend is what a normal newsletter or contact form does: a note, not theft
-                items.append({"kind": "form_third_party", "weight": 8,
-                              "text": f"The page's form sent the fake {what} to a shared form service ({dest}). Normal for newsletter and contact forms; no password or card was involved."})
+            elif site(dest) != start_site and not (set(kinds) & SENSITIVE):
+                # an email, name or phone sent to another server, with no password or card: what newsletter, contact and sign-up forms normally do
+                shared = is_shared_backend(dest)
+                items.append({"kind": "form_third_party", "weight": 8 if shared else 20,
+                              "text": f"The page's form sent the fake {what} to another server ({dest})" + (", a shared form service" if shared else "") + ". Normal for newsletter, contact and sign-up forms; no password or card was involved."})
             elif site(dest) != start_site:
                 items.append({"kind": "credentials_sent_elsewhere", "weight": 60,
                               "text": f"When we typed a FAKE {what}, the page secretly sent it to another server: {dest}."})
