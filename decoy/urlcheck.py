@@ -16,7 +16,14 @@ OFFICIAL = {d: b.title() for b, d in BRANDS.items() if not d.endswith(".test")}
 OFFICIAL.update({"youtube.com": "YouTube", "youtu.be": "YouTube", "wikipedia.org": "Wikipedia", "github.com": "GitHub",
                  "linkedin.com": "LinkedIn", "x.com": "X", "twitter.com": "X", "reddit.com": "Reddit", "tiktok.com": "TikTok",
                  "wa.me": "WhatsApp", "zoom.us": "Zoom", "dropbox.com": "Dropbox", "spotify.com": "Spotify",
-                 "office.com": "Microsoft", "live.com": "Microsoft", "gmail.com": "Google", "bing.com": "Microsoft"})
+                 "office.com": "Microsoft", "live.com": "Microsoft", "gmail.com": "Google", "bing.com": "Microsoft",
+                 "openai.com": "OpenAI", "chatgpt.com": "ChatGPT", "anthropic.com": "Anthropic", "claude.ai": "Claude", "meta.com": "Meta",
+                 "notion.so": "Notion", "notion.com": "Notion", "obsidian.md": "Obsidian", "wisprflow.ai": "Wispr Flow", "antigravity.google": "Google Antigravity",
+                 "slack.com": "Slack", "oracle.com": "Oracle", "canva.com": "Canva", "figma.com": "Figma", "stripe.com": "Stripe", "paypal.com": "PayPal",
+                 "pinterest.com": "Pinterest", "adobe.com": "Adobe", "salesforce.com": "Salesforce", "atlassian.com": "Atlassian", "cloudflare.com": "Cloudflare",
+                 "vercel.com": "Vercel", "supabase.com": "Supabase", "huggingface.co": "Hugging Face", "discord.com": "Discord", "telegram.org": "Telegram",
+                 "netflix.com": "Netflix", "apple.com": "Apple", "amazon.com": "Amazon", "microsoft.com": "Microsoft", "whatsapp.com": "WhatsApp", "instagram.com": "Instagram",
+                 "facebook.com": "Facebook", "google.com": "Google", "docs.google.com": "Google Docs", "drive.google.com": "Google Drive", "mail.google.com": "Gmail"})
 LOOKALIKE = str.maketrans({"0": "o", "1": "l", "3": "e", "4": "a", "5": "s", "7": "t", "$": "s", "@": "a"})
 SHORTENERS = {"bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "cutt.ly", "rb.gy", "shorturl.at"}
 

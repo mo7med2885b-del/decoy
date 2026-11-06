@@ -387,6 +387,7 @@ function handle(ev) {
       break;
     case 'devtools': devtools(ev); break;
     case 'debate': debateMsg(ev); break;
+    case 'consensus_final': break;  // the chat room already shows the debate; the saved verdict now carries it too
     case 'frame':  // live view of the sandbox browser: cursor moving and text being typed
       $('shot').src = ev.shot;
       break;

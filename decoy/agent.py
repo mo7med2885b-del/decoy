@@ -26,6 +26,13 @@ from . import debate as debate_mod
 from . import swarm as swarm_mod
 from .verdict import is_shared_backend, Evidence, cloaking, is_telemetry, template_summary
 
+def env_int_s(key: str, default: int) -> int:
+    try:
+        return int(env(key, str(default)))
+    except ValueError:
+        return default
+
+
 MAX_ACTIONS = 4
 SUBMIT_WORDS = re.compile(r"sign|log ?in|continue|verify|confirm|next|submit|unlock|pay|claim|download|view|open|start", re.I)
 
@@ -192,7 +199,10 @@ def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, 
         state = sb.send({"cmd": "open", "url": url, "canary": canary, "persona": persona,
                          "demo_ip": ("127.0.0.1" if sb.mode == "local" else "host-gateway") if demo else None,
                          "demo_suffix": DEMO_SUFFIX if demo else None}, timeout=75, on_frame=on_frame)
+        t_end = time.time() + env_int_s("EXPLORE_SECONDS", 35)
         for step in range(max_actions + 1):
+            if step > 0 and time.time() > t_end:
+                break  # enough has been seen: the rest of the scan must not wait for a slow page
             if not state.get("ok"):
                 raise SandboxError(state.get("error", "sandbox step failed"))
             shot_url = None
@@ -365,15 +375,8 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
     agents.shutdown(wait=False)
 
     v = ev.verdict()
-    ai_budget = Budget()  # the debate gets its own caps: at most 3 rounds, 18 model calls, 120 s
-    ai_budget.max_calls = 18
-    ctx_b["budget"] = ai_budget
-    try:  # the swarm debates: share, challenge, reply, vote, consensus
-        consensus = debate_mod.run_debate(agent_results, ev, v, ctx_b, emit)
-    except Exception as e:
-        consensus = {"text": f"The debate could not finish ({type(e).__name__}).", "agree": 0, "total": 0, "dissent": [], "votes": {}, "challenges": 0}
     v = ev.verdict()
-    v["consensus"] = consensus
+    v["consensus"] = None  # filled in when the debate ends (event consensus_final)
     mem = out.get("memory") or {"seen_before": [], "campaign": []}
     v["memory"] = mem
     v["exfil_geo"] = [{k: tracker.locs[g["host"]].get(k) for k in ("host", "ip", "city", "code", "org", "simulated")} for g in v["attacker_got"] if g["host"] in tracker.locs]
@@ -399,4 +402,15 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
     except Exception as e:
         emit({"type": "note", "text": f"Could not save to memory: {e}"})
     emit({"type": "verdict", **v})
+    # the debate runs AFTER the verdict is out: it can change wording, never the score, so nobody has to wait for it
+    ai_budget = Budget()  # the debate gets its own caps: at most 3 rounds, 18 model calls, 120 s
+    ai_budget.max_calls = 18
+    ctx_b["budget"] = ai_budget
+    try:  # the swarm debates: share, challenge, reply, vote, consensus
+        consensus = debate_mod.run_debate(agent_results, ev, v, ctx_b, emit)
+    except Exception as e:
+        consensus = {"text": f"The debate could not finish ({type(e).__name__}).", "agree": 0, "total": 0, "dissent": [], "votes": {}, "challenges": 0}
+    v["consensus"] = consensus
+    v["model_calls"] = budget.calls + ai_budget.calls
+    emit({"type": "consensus_final", **{k: val for k, val in consensus.items() if k != "log"}, "log": consensus.get("log")})
     return v

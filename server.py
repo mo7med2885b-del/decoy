@@ -138,6 +138,8 @@ def _run(scan_id: str, url: str, budget: guard.Budget, mode: str = "simple"):
         ev["t"] = round(time.time() - SCANS[scan_id]["started"], 2)
         if ev.get("type") == "verdict":
             SCANS[scan_id]["verdict"] = ev
+        elif ev.get("type") == "consensus_final" and SCANS[scan_id].get("verdict"):
+            SCANS[scan_id]["verdict"]["consensus"] = {k: x for k, x in ev.items() if k != "type"}  # the debate ended after the verdict went out
         with LOCK:
             SCANS[scan_id]["events"].append(ev)
     watchdog = threading.Timer(HARD_SECONDS, lambda: (budget.cancelled.set(), kill_scan(scan_id)))
