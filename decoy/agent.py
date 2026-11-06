@@ -11,6 +11,7 @@ import secrets
 import time
 from urllib.parse import urlsplit
 
+from .guide import with_guide
 from . import llm
 from .config import DEMO_SUFFIX, RUNS, env
 from .guard import Budget, BudgetExceeded
@@ -38,14 +39,16 @@ Choose ONE next action and answer with JSON only:
 {"action":"click","id":<button or link id>,"reason":"<short>"}
 {"action":"done","reason":"<short>"}
 Prefer: fill and submit forms that ask for credentials or payment; click buttons that lead deeper (verify, sign in,
-download, view invoice, claim). Choose done when the page has nothing more to reveal."""
+download, view invoice, claim). Choose done when the page has nothing more to reveal.
+Hard rules: (1) If a sign-in or payment page belongs to a DIFFERENT organization than the site you started on (for example a "Sign in with Google / Microsoft / a company account" page), do NOT type into it: choose done. Never type into a real service. (2) Prefer forms on the starting site itself. (3) Do not click ads, downloads or links that leave the site unless the page is clearly a lure. (4) Fewer, meaningful steps beat many: stop once the page has shown what it does."""
 
 SUMMARY_SYSTEM = """You write the verdict for Decoy, a tool that opens suspicious links in a sealed sandbox.
 Write 2 or 3 short sentences in plain, everyday words for a non-technical person: what the link does and what to do.
 Use ONLY the facts in <EVIDENCE>. Do not add facts, numbers or advice beyond them. Do not change the verdict level.
 Never call a DANGEROUS or SUSPICIOUS link safe. If the level is LOOKS SAFE (the official site of a known service) or
 NO THREAT FOUND, say plainly what the page is (use page_title and page_host) and that nothing harmful was seen; for
-LOOKS SAFE say it is fine to open. Answer with the sentences only."""
+LOOKS SAFE say it is fine to open. Answer with the sentences only.
+Stay proportional: a young domain, many trackers or a redirect between the same organization's addresses are not reasons to call a link dangerous; describe them calmly and let the level (decided by code) carry the weight."""
 
 
 def make_canary() -> dict:
@@ -141,6 +144,8 @@ def model_summary(budget: Budget, v: dict) -> str | None:
 IPHONE_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) "
              "Version/17.5 Mobile/15E148 Safari/604.1")
 # The visitor swarm: the same link, opened by different "people". A page that treats them differently is cloaking.
+SUMMARY_SYSTEM = with_guide(SUMMARY_SYSTEM)
+
 PERSONAS = [
     {"id": "careless", "name": "Careless employee", "device": "Laptop · Chrome", "ua": None, "mobile": False, "locale": "en-US",
      "viewport": {"width": 1280, "height": 800}, "lead": True},

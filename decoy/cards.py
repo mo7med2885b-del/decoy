@@ -1,5 +1,6 @@
 """Agent cards: what each agent on the canvas is, which model it runs on, and its exact system prompt. Read by the UI (/api/agents)."""
 from . import agent as agent_mod, debate, investigate, llm
+from .guide import with_guide
 from .config import env
 from .swarm import AGENTS
 
@@ -17,7 +18,7 @@ def cards() -> dict:
         c = {"name": name, "kind": kind, "does": what, "model": None, "prompt": CODE_NOTE}
         if aid in ROLE_OF:
             a = _analyst(ROLE_OF[aid])
-            c.update(model=env("DECOY_MODEL_" + aid.upper(), a["model"]), prompt=a["system"] + investigate.FORMAT)
+            c.update(model=env("DECOY_MODEL_" + aid.upper(), a["model"]), prompt=with_guide(a["system"] + " " + investigate.ROLE_NOTES.get(a["id"], "")) + investigate.FORMAT)
         out[aid] = c
     key = bool(llm.available())
     out["v_careless"] = {"name": "Careless employee", "kind": "model", "does": "A laptop visitor in its own sealed browser. Looks at the page like a slightly careless person and decides each click and which FAKE values to type.",

@@ -12,6 +12,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlsplit
 
+from .guide import with_guide
 from . import llm, reputation
 from .config import env
 from .guard import Budget
@@ -200,6 +201,23 @@ def rules_findings2(role: str, case: dict) -> list[str]:
     return out or ["No pressure tactics or requests for sensitive data were seen."]
 
 
+
+ROLE_NOTES = {
+    "network": "Look at WHERE requests went and WHAT they carried. Separate the site's own servers, its normal helpers (analytics, fonts, CDN, consent banners, tag managers) and unrelated servers. "
+               "Only a request that carried the typed FAKE data to an unrelated organization, or a connection to a chat-bot or webhook channel, is a concern. A high request count alone is not.",
+    "script": "Read the page's scripts as an engineer. Bundled or minified code is normal. A concern is code that builds a request from typed field values, decodes hidden strings and then sends them, "
+              "injects a fake login form, or redirects only some visitors. If you cannot tell what a script does from the data, say you cannot tell; never guess a purpose.",
+    "endpoint": "List the background requests that carried form data and the shape of the payload. Say whether each went to the site itself, a known helper or an unrelated server. "
+                "A form that posts an email to the site's own server is normal; only passwords or card data going to an unrelated server is a concern.",
+    "cookies": "Describe what the browser stored. Tracking and advertising cookies from well-known networks are a privacy note, not an attack. Missing Secure or HttpOnly flags are a weakness to mention calmly. "
+               "A concern needs a cookie that clearly carries a typed secret or a session sent to an unrelated site.",
+    "lure": "Judge manipulation: urgency, fear, threats of a locked account, prizes, requests to confirm or pay, a brand the page does not own. A normal promotion, event page or product page "
+            "that simply invites a visitor to sign up is NOT manipulation. If the page asks for nothing sensitive, say so.",
+    "infra": "Describe the servers: addresses, hosting company, location, age of the domain, links to earlier scans. A young domain, a big cloud or CDN host, or many third-party helpers are not evidence of a scam by themselves. "
+             "Link to a campaign only when earlier scans really share a data-collection server.",
+}
+
+
 ANALYSTS = [
     {"id": "network", "model": "glm-5.3-flash", "name": "Network analyst", "icon": "⌁",
      "system": "You are a network analyst. From <DATA> (requests, hosts, redirects, leaks, blocked probes) explain how data moved and where it went."},
@@ -246,11 +264,11 @@ def analyst_run(a: dict, case: dict, budget: Budget, use_model: bool) -> dict:
             want = env("DECOY_MODEL_" + a["id"].upper(), a.get("model") or "")
             used = want or llm.model_name()
             prompt = "<DATA>\n" + json.dumps(slice_)[:6000] + "\n</DATA>"
-            text = llm.chat(budget, a["system"] + FORMAT, prompt, max_tokens=900, model=want or None)
+            text = llm.chat(budget, with_guide(a["system"] + " " + ROLE_NOTES.get(a["id"], "")) + FORMAT, prompt, max_tokens=900, model=want or None)
             parsed = llm.parse_json(text) or {}
             if not parsed.get("findings") and want:  # this model gave nothing usable: ask the default model instead
                 used = llm.model_name()
-                parsed = llm.parse_json(llm.chat(budget, a["system"] + FORMAT, prompt, max_tokens=900)) or {}
+                parsed = llm.parse_json(llm.chat(budget, with_guide(a["system"] + " " + ROLE_NOTES.get(a["id"], "")) + FORMAT, prompt, max_tokens=900)) or {}
             allowed = set(case["hosts"]) | {case["start_host"]} | {i["value"] for i in iocs(case)} | set(slice_.get("resolved", {}))
             good = _clean(parsed.get("findings"), allowed)
             if good:
