@@ -135,12 +135,13 @@ def kill_scan(scan_id: str):
 
 
 class WarmPool:
-    """One sealed browser kept ready for the laptop visitor, so a scan starts in about a second instead of several.
-    It is used by exactly one scan and then destroyed like every other sandbox; a replacement is started right away, and an unused one is replaced every 100 s."""
+    """Two sealed browsers kept ready for the laptop visitor, so a scan starts at once instead of after several seconds.
+    Each is used by exactly one scan and then destroyed like every other sandbox; a replacement is started right away, and an unused one is replaced every 100 s."""
     MAX_AGE = 100
+    SIZE = 2
 
     def __init__(self, prewarm_msg: dict):
-        self.msg, self.lock, self.sb, self.t, self.filling = prewarm_msg, threading.Lock(), None, 0.0, False
+        self.msg, self.lock, self.ready, self.filling = prewarm_msg, threading.Lock(), [], 0
         self.stop = False
 
     def enabled(self) -> bool:
@@ -150,46 +151,57 @@ class WarmPool:
         """Fill the pool now (server start) and keep it fresh in the background."""
         if not self.enabled():
             return
-        threading.Thread(target=self._fill, daemon=True).start()
+        self._top_up()
         threading.Thread(target=self._loop, daemon=True).start()
+
+    def _top_up(self):
+        with self.lock:
+            need = self.SIZE - len(self.ready) - self.filling
+            self.filling += max(need, 0)
+        for _ in range(max(need, 0)):
+            threading.Thread(target=self._fill, daemon=True).start()
 
     def _loop(self):
         while not self.stop:
             time.sleep(20)
+            old = []
             with self.lock:
-                old = self.sb is None or time.time() - self.t > self.MAX_AGE
-            if old:
-                self._fill()
+                for sb, t in list(self.ready):
+                    if time.time() - t > self.MAX_AGE:
+                        self.ready.remove((sb, t))
+                        old.append(sb)
+            for sb in old:
+                sb.destroy()
+            self._top_up()
 
     def _fill(self):
-        with self.lock:
-            if self.filling:
-                return
-            self.filling = True
+        sb = None
         try:
             sb = Sandbox(scan_id="warm")
             sb.start()
             sb.send({"cmd": "prewarm", **self.msg}, timeout=40)
             with self.lock:
-                prev, self.sb, self.t = self.sb, sb, time.time()
-            if prev:
-                prev.destroy()
+                self.ready.append((sb, time.time()))
         except Exception:
-            pass
+            if sb:
+                sb.destroy()
         finally:
             with self.lock:
-                self.filling = False
+                self.filling = max(0, self.filling - 1)
 
     def take(self, scan_id: str):
         """A ready sandbox for this scan, or None (the caller then starts a cold one). A replacement is started either way."""
         if not self.enabled():
             return None
+        sb = None
         with self.lock:
-            sb, self.sb = self.sb, None
-        threading.Thread(target=self._fill, daemon=True).start()
-        if sb and time.time() - self.t <= self.MAX_AGE and sb.proc and sb.proc.poll() is None:
-            sb.scan_id = scan_id
-            return sb
+            while self.ready:
+                cand, t = self.ready.pop(0)
+                if time.time() - t <= self.MAX_AGE and cand.proc and cand.proc.poll() is None:
+                    sb = cand
+                    break
+                cand.destroy()
+        self._top_up()
         if sb:
-            sb.destroy()
-        return None
+            sb.scan_id = scan_id
+        return sb

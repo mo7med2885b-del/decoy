@@ -178,10 +178,18 @@ class Runner:
         self.page = ctx.new_page()
         self._watch(self.page)
         try:
-            self.page.goto(msg["url"], wait_until="domcontentloaded", timeout=12000)
-            self.frame()  # the first picture goes out the moment the page has a skeleton, not after everything loaded
+            self.page.goto(msg["url"], wait_until="commit", timeout=12000)  # the server answered: the page starts to draw
+            t0 = time.time()
+            while time.time() - t0 < 8:  # live pictures every half second while it loads, so a person sees the page appear at once
+                self.frame()
+                try:
+                    if self.page.evaluate("document.readyState") != "loading":
+                        break
+                except Exception:
+                    pass
+                self.page.wait_for_timeout(450)
             try:
-                self.page.wait_for_load_state("load", timeout=4000)
+                self.page.wait_for_load_state("load", timeout=3500)
             except Exception:
                 pass
         except Exception as e:  # a dead or slow page is still evidence
