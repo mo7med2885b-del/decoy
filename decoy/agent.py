@@ -247,7 +247,7 @@ def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, 
             if ev.official:
                 # Never type even fake data into a real service: on official sites Decoy only looks.
                 action = {"action": "done", "reason": "This is an official site, so I only look and never type anything."}
-            elif use_model and lead:
+            elif use_model:
                 try:
                     action = model_plan(budget, state, history)
                     by = llm.model_name()
@@ -300,7 +300,8 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
 
     # The specialist agents that need only the address start now, in parallel with the visitors.
     agents = ThreadPoolExecutor(max_workers=9)
-    ctx_a = {"url": url, "host": host, "signals": signals, "official": official}
+    ctx_a = {"url": url, "host": host, "signals": signals, "official": official, "use_model": use_model and env("DECOY_SWARM_AI", "1") == "1", "budget": Budget()}
+    ctx_a["budget"].max_calls = 8
     a_futs = {aid: agents.submit(swarm_mod.run_agent, aid, ctx_a, emit) for aid in swarm_mod.GROUP_A}
 
     frames = [0]
@@ -358,7 +359,7 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
         tracker.seen(g["host"], "exfil")
     tracker.wait()
     ai_budget = Budget()
-    ai_budget.max_calls = 5
+    ai_budget.max_calls = 14
     out: dict = {}
     ctx_b = {"url": url, "host": host, "ev": ev, "visitors": visitors, "exfil_hosts": [g["host"] for g in v0["attacker_got"] if not is_shared_backend(g["host"])], "scan_id": scan_id, "out": out,
              "budget": ai_budget, "use_model": use_model and env("DECOY_SWARM_AI", "1") == "1",
@@ -417,7 +418,7 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
     emit({"type": "verdict", **v})
     # the debate runs AFTER the verdict is out: it can change wording, never the score, so nobody has to wait for it
     ai_budget = Budget()  # the debate gets its own caps: at most 3 rounds, 18 model calls, 120 s
-    ai_budget.max_calls = 18
+    ai_budget.max_calls = 40  # orchestrator, replies and every agent's own vote
     ctx_b["budget"] = ai_budget
     try:  # the swarm debates: share, challenge, reply, vote, consensus
         consensus = debate_mod.run_debate(agent_results, ev, v, ctx_b, emit)

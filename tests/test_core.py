@@ -273,23 +273,48 @@ def test_error_monitoring_is_a_privacy_note_not_theft_and_phishing_channels_are_
     assert any(e["kind"] == "exfil_channel" for e in bad.verdict()["evidence"])
 
 
-def test_swarm_debate_finds_contradictions_and_counts_votes():
-    from decoy import debate
+def _debate_fixture():
     ev = Evidence("http://x-offer.test/", [])
     ev.add_state({"url": "http://x-offer.test/", "title": "Claim", "page": {"visible_text": "Claim your prize " * 5, "buttons": [{"id": 1, "text": "Go"}]}, "network": [
         {"url": "http://drop-zone.test/c", "host": "drop-zone.test", "method": "POST", "type": "fetch", "canary_sent": ["PASSWORD"]}]}, 0)
     v = ev.verdict()
     v["swarm"] = []
     results = {"endpoints": {"findings": ["The page made no background requests."]}, "script": {"findings": ["No scripts were found."]}, "lure": {"findings": ["Nothing unusual."]}}
-    cs = debate.code_conflicts(results, ev, v)
-    assert any(c["to"] == "endpoints" for c in cs) and all(c["to"] in results for c in cs)
-    events = []
+    return ev, v, results
+
+
+def test_no_question_is_ever_written_by_code(monkeypatch):
+    from decoy import debate
+    assert not hasattr(debate, "code_conflicts")
+    ev, v, results = _debate_fixture()
     ctx = {"use_model": False, "budget": None, "case": {"hosts": {"drop-zone.test": 1}, "start_host": "x-offer.test"}}
+    events = []
     out = debate.run_debate(results, ev, v, ctx, events.append)
     phases = [e["phase"] for e in events]
-    assert phases[0] == "share" and "challenge" in phases and "reply" in phases and phases[-1] == "consensus"
-    assert out["votes"]["endpoints"] == "agree" and "drop-zone.test" in results["endpoints"]["findings"][0]  # corrected after the challenge, then votes with the verdict
-    assert "orchestrator" in phases and "vote" in phases and out["rounds"] >= 1
+    assert "challenge" not in phases and "reply" not in phases and phases[0] == "share" and phases[-1] == "consensus" and out["challenges"] == 0
+
+
+def test_agents_ask_each_other_and_the_orchestrator_asks_and_models_vote(monkeypatch):
+    from decoy import debate, llm
+    ev, v, results = _debate_fixture()
+
+    def fake_chat(budget, system, user, image_b64=None, max_tokens=1500, model=None):
+        if "ORCHESTRATOR" in system:
+            return '{"analysis": "Findings clash on the requests.", "questions": [{"to": "script", "question": "Which script sent the data to drop-zone.test?"}], "proposal": "Keep the verdict."}'
+        if "ONE pointed question" in system:
+            return '{"to": "endpoints", "question": "You say no requests, but data left for drop-zone.test: which request was it?"}' if '"you": "lure"' in user else '{"to": null, "question": ""}'
+        if "A reviewer challenges" in system:
+            return '{"stance": "revise", "reply": "Fair, I missed the POST.", "revised": "drop-zone.test received the typed data."}'
+        return '{"vote": "agree", "why": "My area supports the verdict."}'
+    monkeypatch.setattr(llm, "chat", fake_chat)
+    monkeypatch.setattr(llm, "available", lambda: True)
+    ctx = {"use_model": True, "budget": object(), "case": {"hosts": {"drop-zone.test": 1}, "start_host": "x-offer.test"}}
+    events = []
+    out = debate.run_debate(results, ev, v, ctx, events.append)
+    ch = [e for e in events if e["phase"] == "challenge"]
+    assert any(e.get("with") == "lure" and e["to"] == "endpoints" for e in ch), "an agent asks another agent"
+    assert any(e.get("with") == "orchestrator" and e["to"] == "script" for e in ch), "the orchestrator asks an agent"
+    assert all(e["by"] != "rules" for e in events if e["phase"] == "vote") and out["votes"]["endpoints"] == "agree"
 
 
 def test_email_to_shared_form_backend_is_a_note_but_a_password_is_theft():
@@ -405,3 +430,18 @@ def test_malware_warning_page_and_gone_page_on_a_scammy_address_need_a_look():
     ev3.address_score = 0
     ev3.add_state({"url": "https://example.org/", "title": "Page not found", "page": {"visible_text": "x"}, "network": []}, 0)
     assert ev3.verdict()["level"] == "NO THREAT FOUND"
+
+
+def test_every_agent_is_an_ai_model_that_words_the_facts_code_counted(monkeypatch):
+    from decoy import llm, swarm
+    seen = []
+
+    def fake_chat(budget, system, user, image_b64=None, max_tokens=1500, model=None):
+        seen.append(model)
+        return '{"findings": ["The certificate is valid and was issued recently."]}'
+    monkeypatch.setattr(llm, "chat", fake_chat)
+    monkeypatch.setattr(llm, "available", lambda: True)
+    ctx = {"use_model": True, "budget": object(), "host": "x.example.org", "url": "https://x.example.org/", "official": None, "signals": []}
+    w = swarm.ai_words("tls", ctx, ["Valid certificate from Test CA, 3 day(s) old."])
+    assert w and w[1] == swarm.AI_MODELS["tls"] and seen[0] == swarm.AI_MODELS["tls"]
+    assert swarm.ai_words("tls", {**ctx, "use_model": False}, ["x"]) is None

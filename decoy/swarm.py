@@ -5,6 +5,7 @@ code scores). Four of them can also ask a small Vultr AI model to help; every ag
   at the start, in parallel with the visitors:   check (address + domain age) · geo (server location) · tls (certificate)
   after the visitors, in parallel:               script · endpoints · privacy · lure · intel · cloak
 """
+import json
 import re
 import socket
 import ssl
@@ -12,7 +13,8 @@ import time
 from urllib.parse import urlsplit
 
 from . import geo as geo_mod
-from . import investigate, reputation, store
+from .config import env
+from . import investigate, llm, reputation, store
 from .guard import Budget
 from .verdict import cloaking, is_telemetry
 
@@ -170,6 +172,38 @@ FUNCS = {"check": check_agent, "address": address_agent, "geo": geo_agent, "tls"
          "privacy": privacy_agent, "lure": lure_agent, "intel": intel_agent, "cloak": cloak_agent}
 
 
+# Every agent is an AI model: code counts the facts of its area, and the agent's OWN model reads them and writes the finding in plain words.
+# (Code still owns the numbers, the evidence weights and the score; a model can only word a finding, never change the verdict.)
+AI_MODELS = {"address": "qwen3.8-flash-next", "check": "mimo-v2.6-flash", "geo": "glm-5.3-flash", "tls": "deepseek-v4.1-flash-1017", "intel": "minimax-m3.1-flash",
+             "cloak": "qwen3.8-flash-next", "script": "deepseek-v4.1-flash-1017", "endpoints": "qwen3.8-flash-next", "privacy": "mimo-v2.6-flash", "lure": "minimax-m3.1-flash"}
+
+
+def agent_system(aid: str) -> str:
+    from .guide import with_guide
+    name, _icon, _kind, what = AGENTS[aid]
+    return with_guide(f"You are the {name} agent in a swarm of security analysts. Your job: {what} You receive the facts that CODE counted for your area in <FACTS> "
+                      "(they are exact) and may also receive a few raw samples. Write what they mean in plain words for an ordinary person, judge them with the guide below, "
+                      "and say plainly when your area shows nothing wrong." + investigate.FORMAT)
+
+
+def ai_words(aid: str, ctx: dict, facts: list[str]) -> tuple[list[str], str] | None:
+    """The agent's own model writes its finding from the facts code gives it. None when no model answers (the caller keeps the code's sentences)."""
+    if not (ctx.get("use_model") and llm.available() and ctx.get("budget")):
+        return None
+    allowed = set(investigate.HOST_RE.findall(" ".join(facts))) | {ctx.get("host", ""), (ctx.get("case") or {}).get("start_host", "")}
+    allowed |= set((ctx.get("case") or {}).get("hosts", []))
+    user = "<FACTS>\n" + json.dumps({"url": ctx.get("url"), "official_address": bool(ctx.get("official")), "facts": facts[:8]})[:4000] + "\n</FACTS>"
+    for model in (env("DECOY_MODEL_" + aid.upper(), AI_MODELS.get(aid, "")) or None, "qwen3.8-flash-next"):
+        try:
+            p = llm.parse_json(llm.chat(ctx["budget"], agent_system(aid), user, max_tokens=700, model=model)) or {}
+        except Exception:
+            continue
+        good = investigate._clean(p.get("findings"), allowed)
+        if good:
+            return good, (model or llm.model_name())
+    return None
+
+
 def run_agent(aid: str, ctx: dict, emit) -> dict:
     name, icon, kind, desc = AGENTS[aid]
     emit({"type": "agent", "id": aid, "name": name, "icon": icon, "kind": kind, "status": "working"})
@@ -179,6 +213,13 @@ def run_agent(aid: str, ctx: dict, emit) -> dict:
     except Exception as e:  # one agent failing never stops the others
         res = {"findings": [f"Could not finish ({type(e).__name__})."], "items": []}
     res.setdefault("by", "rules")
+    if res["by"] == "rules":
+        try:
+            w = ai_words(aid, ctx, list(res["findings"]))
+            if w:
+                res["findings"], res["by"] = w[0] + [f for f in res["findings"] if f not in w[0]][:0], w[1]
+        except Exception:
+            pass
     emit({"type": "agent", "id": aid, "name": name, "icon": icon, "kind": kind, "status": "done", "findings": res["findings"][:4],
           "weight": sum(i["weight"] for i in res["items"]), "by": res["by"], "seconds": round(time.time() - t0, 1)})
     return res
