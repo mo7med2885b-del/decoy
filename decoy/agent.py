@@ -15,7 +15,7 @@ from .guide import with_guide
 from . import llm
 from .config import DEMO_SUFFIX, RUNS, env
 from .guard import Budget, BudgetExceeded
-from .sandbox import Sandbox, SandboxError
+from .sandbox import Sandbox, SandboxError, WarmPool
 from .urlcheck import domain_signals
 from concurrent.futures import ThreadPoolExecutor
 
@@ -146,6 +146,8 @@ IPHONE_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit
 # The visitor swarm: the same link, opened by different "people". A page that treats them differently is cloaking.
 SUMMARY_SYSTEM = with_guide(SUMMARY_SYSTEM)
 
+WARM = WarmPool({"demo_ip": "host-gateway", "demo_suffix": DEMO_SUFFIX})
+
 PERSONAS = [
     {"id": "careless", "name": "Careless employee", "device": "Laptop · Chrome", "ua": None, "mobile": False, "locale": "en-US",
      "viewport": {"width": 1280, "height": 800}, "lead": True},
@@ -178,11 +180,12 @@ def explore(persona: dict, url: str, scan_id: str, out_dir, ev: Evidence, emit, 
     """One visitor opens the link in its own fresh sandbox, acts like a person, and everything is recorded into `ev`.
     The sandbox is destroyed before this returns, whatever happens."""
     lead = bool(persona.get("lead"))
-    sb = Sandbox(memory=None if lead else "512m", scan_id=scan_id)
+    sb = (WARM.take(scan_id) if lead else None) or Sandbox(memory=None if lead else "512m", scan_id=scan_id)
+    warm = bool(sb.proc)  # a warm sandbox is already running
     history, tried, error, first_shot, first_full = [], set(), None, None, None
     prefix = "step" if lead else f"p-{persona['id']}"
     try:
-        info = sb.start()
+        info = sb.info if warm and sb.info else sb.start()
         emit({"type": "sandbox", "phase": "created", "info": info, "who": persona["id"]})
         demo = env("DECOY_DEMO", "1") == "1"
         state = sb.send({"cmd": "open", "url": url, "canary": canary, "persona": persona,

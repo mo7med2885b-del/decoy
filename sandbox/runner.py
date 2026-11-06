@@ -137,17 +137,31 @@ class Runner:
         self.mouse = (VIEW["width"] / 2, VIEW["height"] / 2)
 
     # ---- setup -------------------------------------------------------------
+    def launch(self, demo_ip, demo_suffix):
+        """Start Chromium (or keep the one a warm-up already started: same settings means it can be reused, a clean browser either way)."""
+        key = (demo_ip, demo_suffix)
+        if self.browser is not None and getattr(self, "_launch_key", None) == key:
+            return
+        if self.browser is not None:
+            try:
+                self.browser.close()
+            except Exception:
+                pass
+        self.demo_suffix = demo_suffix
+        args = ["--disable-dev-shm-usage", "--no-first-run", "--disable-extensions", "--disable-quic"]  # QUIC (UDP) stalls page loads inside gVisor
+        if demo_ip and demo_suffix:
+            if demo_ip == "host-gateway":
+                demo_ip = socket.gethostbyname("host.docker.internal")
+            args.append(f"--host-resolver-rules=MAP *{demo_suffix} {demo_ip}")
+        self.browser = self.pw.chromium.launch(headless=True, args=args)
+        self._launch_key = key
+
     def open(self, msg):
         self.canary = msg.get("canary", {})
         self.lead = bool((msg.get("persona") or {}).get("lead", True))
         demo_ip = msg.get("demo_ip")
         self.demo_suffix = msg.get("demo_suffix")  # e.g. ".test": our own fake sites only
-        args = ["--disable-dev-shm-usage", "--no-first-run", "--disable-extensions", "--disable-quic"]  # QUIC (UDP) stalls page loads inside gVisor
-        if demo_ip and self.demo_suffix:
-            if demo_ip == "host-gateway":
-                demo_ip = socket.gethostbyname("host.docker.internal")
-            args.append(f"--host-resolver-rules=MAP *{self.demo_suffix} {demo_ip}")
-        self.browser = self.pw.chromium.launch(headless=True, args=args)
+        self.launch(demo_ip, self.demo_suffix)
         # Each visitor persona looks different to the website: device, browser string, language.
         per = msg.get("persona") or {}
         view = per.get("viewport") or VIEW
@@ -392,7 +406,10 @@ def main():
         try:
             msg = json.loads(line)
             cmd = msg.get("cmd")
-            if cmd == "open":
+            if cmd == "prewarm":
+                r.launch(msg.get("demo_ip"), msg.get("demo_suffix"))
+                emit({"ok": True, "warm": True})
+            elif cmd == "open":
                 emit(r.open(msg))
             elif cmd == "state":
                 emit(r.state())
