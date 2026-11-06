@@ -186,16 +186,17 @@ def model_ballot(aid: str, results: dict, ev, v: dict, ctx, proposal: str) -> tu
     rule_vote, rule_why = ballot(aid, results, ev, v)
     if not (ctx["use_model"] and llm.available()):
         return rule_vote, rule_why, "rules"
-    try:
-        from .swarm import AI_MODELS
-        data = {"agent": AGENTS[aid][0], "your_findings": results[aid]["findings"][:3], "verdict_level": v["level"], "proposal": proposal}
-        model = env("DECOY_MODEL_" + aid.upper(), AI_MODELS.get(aid, "")) or None
-        p = llm.parse_json(llm.chat(ctx["budget"], with_guide(VOTE_SYSTEM), "<DATA>\n" + json.dumps(data)[:2500] + "\n</DATA>", max_tokens=300, model=model)) or {}
-        vote, why = p.get("vote"), re.sub(r"\s+", " ", str(p.get("why") or "")).strip()[:200]
-        if vote in ("agree", "neutral", "object", "abstain") and why:
-            return vote, why, model or llm.model_name()
-    except Exception:
-        pass
+    from .swarm import AI_MODELS
+    data = {"agent": AGENTS[aid][0], "your_findings": results[aid]["findings"][:3], "verdict_level": v["level"], "proposal": proposal}
+    own = env("DECOY_MODEL_" + aid.upper(), AI_MODELS.get(aid, "")) or None
+    for model in (own, "glm-5.3-flash"):  # the agent's own model first; if it errors or answers unusably, one other model casts the vote
+        try:
+            p = llm.parse_json(llm.chat(ctx["budget"], with_guide(VOTE_SYSTEM), "<DATA>\n" + json.dumps(data)[:2500] + "\n</DATA>", max_tokens=300, model=model)) or {}
+            vote, why = p.get("vote"), re.sub(r"\s+", " ", str(p.get("why") or "")).strip()[:200]
+            if vote in ("agree", "neutral", "object", "abstain") and why:
+                return vote, why, model or llm.model_name()
+        except Exception:
+            continue
     return rule_vote, rule_why, "rules"
 
 
