@@ -459,3 +459,15 @@ def test_brand_claim_is_checked_by_code(monkeypatch):
     assert brand.claim(None, "other.example", "Welcome", "", False) is None  # brand never appears in title or address
     answer["claims_brand"] = False
     assert brand.claim(None, "westernunioncash.com", "Western Union Cash Pickup", "", False) is None
+
+
+def test_brand_claim_quote_and_country_variants(monkeypatch):
+    from decoy import brand, llm
+    monkeypatch.setattr(llm, "available", lambda: True)
+    answer = {"claims_brand": True, "brand": "TokenPocket", "official_domains": ["tokenpocket.pro"], "quote": "tp钱包官网下载"}
+    monkeypatch.setattr(llm, "chat", lambda *a, **k: json.dumps(answer))
+    assert brand.claim(None, "mkhl.gdmaoka.com", "tp钱包官网下载正版", "", False)["kind"] == "brand_claim"  # the quote is really in the title
+    answer.update({"brand": "Roblox", "official_domains": ["roblox.com"], "quote": "Roblox"})
+    assert brand.claim(None, "roblox.com.gr", "Roblox", "", False) is not None        # a look-alike country domain is not exempt
+    answer.update({"brand": "Amazon", "official_domains": ["amazon.com"], "quote": "Amazon"})
+    assert brand.claim(None, "amazon.de", "Amazon", "", False) is None                # the plain country domain is

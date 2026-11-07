@@ -164,6 +164,9 @@ def cloak_agent(ctx):
         return {"findings": ["Only one visitor was sent (official site), so there is nothing to compare."], "items": []}
     if not c:
         return {"findings": ["All visitors were shown the same page."], "items": []}
+    if c["kind"] == "cloaking" and "captcha" in getattr(ctx.get("ev"), "gates", set()):
+        # a bot check appeared for some visitor: a difference between visitors is then most likely bot protection or a mobile redirect, not a scam hiding from scanners
+        c = {"kind": "visitor_difference", "weight": 3, "text": c["text"] + " A bot check also appeared during the visit, so this is treated as bot protection, not as cloaking."}
     ctx["out"]["cloak"] = c
     return {"findings": [c["text"]], "items": [c]}
 
