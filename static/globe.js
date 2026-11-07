@@ -19,6 +19,10 @@ const GLB = (() => {
         .arcColor(d => d.color).arcStroke(0.55).arcDashLength(0.35).arcDashGap(0.18).arcDashAnimateTime(1400).arcAltitudeAutoScale(0.45)
         .ringColor(d => t => hexA(d.color, 1 - t)).ringMaxRadius(d => d.r || 5).ringPropagationSpeed(2.4).ringRepeatPeriod(1100)
         .htmlLat(d => d.lat).htmlLng(d => d.lng).htmlAltitude(0.06).htmlElement(d => label(d));
+      try { g.renderer().setPixelRatio(Math.min(devicePixelRatio || 1, 1.25)); } catch (e) {}  // keeps the 3D globe light on laptops
+      // the 3D globe only renders while a scan is on screen (and the tab is visible): at the start screen it is paused, so it costs nothing
+      const gate = () => { try { (document.body.dataset.stage === 'run' && !document.hidden) ? g.resumeAnimation() : g.pauseAnimation(); } catch (e) {} };
+      new MutationObserver(gate).observe(document.body, {attributes: true, attributeFilter: ['data-stage']}); document.addEventListener('visibilitychange', gate); gate();
       g.controls().autoRotate = true; g.controls().autoRotateSpeed = 0.7; g.controls().enableZoom = true; g.controls().minDistance = 125; g.controls().maxDistance = 480; g.controls().zoomSpeed = 0.8;
       g.onPointClick(p => focus(p)).pointRadius(d => d.role === 'origin' ? 0.55 : 0.8);
       const zb = f => () => { const pv = g.pointOfView(); g.controls().autoRotate = false; g.pointOfView({altitude: Math.min(4, Math.max(0.2, pv.altitude * f))}, 450); };
