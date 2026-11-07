@@ -6,6 +6,11 @@
 
 > **Live demo: https://45-32-155-174.sslip.io** (Vultr server, HTTPS, rate limited, daily budget cap). Test links are our own fake sites.
 
+## Why this matters
+Links in messages are how many scams start, for people and for companies. All figures are **reported cases in the United States**, so the real numbers are higher.
+- **People:** in 2025 the FTC received **3 million fraud reports** and consumers reported **$15.9 billion** lost (2024: 2.6 million reports, over $12 billion). Source: [FTC press release, March 2026](https://www.ftc.gov/news-events/news/press-releases/2026/03/ftc-testifies-joint-economic-committee-agencys-efforts-combat-fraud); yearly losses first reported 2021 to 2025: $5.8B, $8.8B, $10B+, $12.5B, $15.9B ([FTC press releases](https://www.ftc.gov/news-events/news/press-releases)). The FBI logged **191,561 phishing and spoofing complaints** in 2025 ([FBI IC3 2025 Internet Crime Report](https://www.ic3.gov/AnnualReport/Reports/2025_IC3Report.pdf)).
+- **Companies:** business email compromise, the scam aimed at companies, produced **24,768 complaints and $3.05 billion in reported losses** in 2025 (same FBI report; 2024: $2.77 billion, 2023: $2.95 billion). IBM's 2025 report puts the average cost of one data breach at **$4.44 million worldwide and $10.22 million in the United States** ([IBM press release, July 2025](https://newsroom.ibm.com/2025-07-30-ibm-report-13-of-organizations-reported-breaches-of-ai-models-or-applications,-97-of-which-reported-lacking-proper-ai-access-controls)).
+
 <p align="center"><img src="assets/screens/scan-live.jpg" alt="A live scan: three visitors in separate sandboxes and the agent chat room" width="100%"></p>
 
 ## What you get
