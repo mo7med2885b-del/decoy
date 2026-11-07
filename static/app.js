@@ -100,18 +100,6 @@ async function ask(q) {
 }
 function ago(t) { const s = Math.max(1, Date.now() / 1000 - t); return s < 90 ? 'just now' : s < 5400 ? Math.round(s / 60) + ' min ago' : s < 129600 ? Math.round(s / 3600) + ' h ago' : Math.round(s / 86400) + ' d ago'; }
 const flag = c => (c && c.length === 2) ? String.fromCodePoint(...[...c.toUpperCase()].map(x => 127397 + x.charCodeAt(0))) : '';
-async function refreshThreats() {
-  try {
-    const rows = await (await fetch('/api/threats?demo=1')).json();
-    $('threatcard').classList.toggle('hidden', !rows.length);
-    const seenH = new Set(); const uniq = rows.filter(r => !seenH.has(r.host) && seenH.add(r.host));  // one line per site, the latest
-    $('thbody').innerHTML = uniq.slice(0, 8).map(r => {
-      const geo = r.exfil_geo || [];
-      const dest = geo.length ? geo.map(g => `${flag(g.code)} <b>${esc(g.host)}</b><span class="pth">${esc([g.city, g.code].filter(Boolean).join(', '))}${g.simulated ? ' (simulated)' : ''}${g.org ? ' · ' + esc(g.org) : ''}</span>`).join('<br>') : '<span class="small">no data sent away</span>';
-      return `<tr><td><b>${esc(r.host)}</b>${r.cloaking ? '<span class="fl bad">cloaked</span>' : ''}</td><td><i class="${levelCls(r.level)} lvl">${esc(LEVEL_TXT[r.level] || r.level)}</i></td><td>${dest}</td><td class="small">${ago(r.at)}</td></tr>`;
-    }).join('');
-  } catch (e) {}
-}
 function showProtect(v) {
   const box = $('protect'); const bad = v.level === 'DANGEROUS' || v.level === 'SUSPICIOUS';
   if (!bad) { box.classList.add('hidden'); return; }
@@ -123,18 +111,6 @@ function showProtect(v) {
     + `<button class="btn" id="copybl" type="button">Copy block-list</button><a class="btn" href="/api/blocklist.hosts?demo=1" target="_blank" rel="noopener">Hosts file</a>`
     + `<a class="btn" href="/api/scan/${scanId}/abuse.txt">Abuse report draft</a></div><p class="small">Decoy never blocks or reports by itself: you review, then you send.</p>`;
   $('copybl').onclick = () => { try { navigator.clipboard.writeText(doms.join('\n')); $('copybl').textContent = 'Copied ✓'; } catch (e) {} };
-}
-async function refreshHistory() {
-  try {
-    const rows = await (await fetch('/api/history')).json();
-    $('histcard').classList.toggle('hidden', !rows.length);
-    $('hist').innerHTML = rows.map(r => {
-      const ex = JSON.parse(r.exfil || '[]');
-      return `<li data-url="${esc(r.url)}"><i class="${levelCls(r.level)}">${esc(LEVEL_TXT[r.level] || r.level)}</i><span class="hu">${esc(r.host)}</span>` +
-        `${r.cloaking ? '<em>cloaked</em>' : ''}${ex.length ? `<em>sent data to ${esc(ex[0])}</em>` : ''}${r.decision ? `<em>you: ${esc(r.decision)}</em>` : ''}<small>${ago(r.at)}</small><button class="rescan" type="button" title="Scan again">↻</button></li>`;
-    }).join('');
-    document.querySelectorAll('#hist li').forEach(li => li.querySelector('.rescan').onclick = () => { $('url').value = li.dataset.url; start(); });
-  } catch (e) {}
 }
 function renderReport(r) {
   const box = $('report'); box.classList.remove('hidden'); $('invbar').classList.add('hidden');
@@ -223,7 +199,7 @@ async function refreshHealth() {
 }
 
 async function init() {
-  refreshHealth(); refreshHistory(); refreshThreats(); initAsk(); initQr();
+  refreshHealth(); initAsk(); initQr();
   try {
     for (const ex of await (await fetch('/api/examples')).json()) {
       const b = document.createElement('button');
@@ -460,7 +436,7 @@ function showVerdict(v) {
     || '<p class="small">Nothing was sent to another server.</p>';
   $('vgrid').classList.remove('hidden'); $('decide').classList.remove('hidden');
   showProtect(v); showMemory(v.memory); (v.swarm || []).forEach(s => swUpdate(s.id, {level: s.level, title: s.title, asked: s.asked, shot: s.shot, full: s.full}));
-  $('askbox').classList.remove('hidden'); refreshHistory(); refreshThreats(); if (mode !== 'investigate') $('invbar').classList.remove('hidden');
+  $('askbox').classList.remove('hidden'); if (mode !== 'investigate') $('invbar').classList.remove('hidden');
   trace(`Verdict ${v.level}, score ${v.score}/100, from ${v.evidence.length} pieces of evidence.`, 'evidence judge · code', risk === 'clean' ? 'good' : 'bad');
   stepTo(3);
 }
