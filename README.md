@@ -19,6 +19,32 @@
 
 <p align="center"><img src="assets/screens/chatroom.jpg" alt="The agent chat room" width="48%"> &nbsp; <img src="assets/screens/verdict.jpg" alt="Verdict" width="48%"></p>
 
+## How Decoy runs on Vultr
+```mermaid
+flowchart LR
+  P["Person pastes a link"] -->|HTTPS| C["Caddy on Vultr Cloud Compute"]
+  C --> A["FastAPI control plane: queue, 2 workers, budget guard"]
+  A -->|one throwaway container each| S["3 sandboxes: laptop, phone, security bot<br/>Docker + gVisor, read-only, no secrets"]
+  S -->|screenshots, requests, cookies, console| A
+  A -->|chat completions| V["Vultr Serverless Inference<br/>GLM, DeepSeek, Qwen, MiMo, MiniMax"]
+  V -->|10 agents + orchestrator argue, vote| A
+  A --> D["Verdict computed by code, PDF, block-list, SQLite threat memory"]
+```
+- **Vultr Cloud Compute (Frankfurt, 2 vCPU / 4 GB):** the control plane (FastAPI, job queue, rate limits, budget guard), Caddy for automatic HTTPS, and the host of every sandbox. One server runs the whole product.
+- **Vultr Serverless Inference:** every agent is a model call: ten specialist agents on different open models plus the orchestrator (`glm-5.3`), so the agents genuinely disagree and cross-examine each other.
+- **Vultr Firewall Groups + host rules:** only ports 22, 80 and 443 are open; container traffic toward private and cloud-metadata ranges is dropped.
+- **Vultr API:** creates and monitors the server, the firewall group and the inference subscription, and checks the cost.
+
+**The agent's use case, and how it executes real tasks.** A person (or a security team) pastes a link they do not trust. Decoy really opens it: three sandboxed browsers load the live page, click through it like a person, type **fake** credentials and card numbers into the real forms, and record every request, redirect, download and cookie. The agents read that evidence; code computes the verdict; the person decides. Real task, real page, nothing run on the person's machine.
+
+## Containment (Blast Radius Zero)
+- **Process isolation:** every visitor runs in its own Docker container under gVisor (`runsc`), read-only root, no root user (uid 10001), all capabilities dropped, `no-new-privileges`. Page code never runs on the host or inside the app.
+- **Secret hygiene:** the sandbox starts with an empty environment; the inference key lives only on the control plane and never enters a container.
+- **Resource limits:** memory, CPU and process-count caps and a size-limited `/tmp` on every container; per-scan caps on model calls and seconds, a daily budget, a kill switch and a limit on parallel scans.
+- **Network:** private and cloud-metadata addresses are blocked twice, inside the browser runner and by host firewall rules; the Vultr firewall allows 22, 80 and 443 only.
+- **Lifecycle:** each sandbox is used once and destroyed; the UI shows "sandbox destroyed".
+- **See it yourself:** scan the demo link `http://n0rthbank-login.test:8601/`. The page tries to read the cloud metadata service (`169.254.169.254`); the **Blocked by the sandbox** card lists every attempt it made and could not complete.
+
 ## Honest by design
 - **Needs a human look:** when the evidence conflicts (a bot check hid the page, or the address looks risky while the visit looked clean) Decoy says so instead of guessing.
 - **Your decisions count:** *Block* and *Mark as safe* become real block and allow lists that win over the score, and the verdict says so.
