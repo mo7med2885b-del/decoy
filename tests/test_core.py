@@ -454,7 +454,7 @@ def test_brand_claim_is_checked_by_code(monkeypatch):
     answer = {"claims_brand": True, "brand": "Western Union", "official_domain": "westernunion.com"}
     monkeypatch.setattr(llm, "chat", lambda *a, **k: json.dumps(answer))
     item = brand.claim(None, "westernunioncash.com", "Western Union Cash Pickup", "", False)
-    assert item and item["kind"] == "brand_claim" and item["weight"] == 20
+    assert item and item["kind"] == "brand_claim" and item["weight"] == 30
     assert brand.claim(None, "www.westernunion.com", "Western Union", "", False) is None  # the brand's own domain
     assert brand.claim(None, "other.example", "Welcome", "", False) is None  # brand never appears in title or address
     answer["claims_brand"] = False

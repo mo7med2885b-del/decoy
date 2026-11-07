@@ -1,6 +1,7 @@
 """Brand-claim check. A model reads the page title, the address and the lure analyst's note and says which well-known brand (if any) the page claims to be
 and what that brand's own domain is. CODE then checks the claim: the brand name must really be in the title or address, and the address must not belong to the
 brand's domain. A model can only propose the claim; code owns the weight."""
+import difflib
 import json
 import re
 
@@ -24,14 +25,16 @@ def claim(budget, url_host: str, title: str, lure_note: str, official: bool, mod
         p = llm.parse_json(llm.chat(budget, with_guide(SYSTEM), "<DATA>\n" + json.dumps(data) + "\n</DATA>", max_tokens=250, model=model)) or {}
     except Exception:
         return None
-    brand = re.sub(r"\s+", " ", str(p.get("brand") or "")).strip()[:40]
+    brand = re.sub(r"\s+", " ", re.sub(r"\(.*?\)", "", str(p.get("brand") or ""))).strip()[:40]
     dom = str(p.get("official_domain") or "").strip().lower()
     if p.get("claims_brand") is not True or len(brand) < 3 or not DOMAIN.match(dom):
         return None
     host = (url_host or "").lower()
-    if host == dom or host.endswith("." + dom) or site(host) == site(dom):
-        return None  # the page is on the brand's own domain
-    if brand.lower() not in (title or "").lower() and brand.lower().replace(" ", "") not in host.replace("-", ""):
+    if host == dom or host.endswith("." + dom) or site(host) == site(dom) or site(host).split(".")[0] == site(dom).split(".")[0]:
+        return None  # the page is on the brand's own domain (or its country variant, such as amazon.de)
+    flat = re.sub(r"[^a-z0-9]", "", brand.lower())
+    near = any(difflib.SequenceMatcher(None, flat, w).ratio() >= 0.8 for w in re.findall(r"[a-z0-9]+", host) if len(w) >= 4)  # a typo of the brand in the address
+    if brand.lower() not in (title or "").lower() and flat not in re.sub(r"[^a-z0-9]", "", (title or "").lower() + host) and not near:
         return None  # the model named a brand the title and address never mention: ignore it
-    return {"kind": "brand_claim", "weight": 20,
+    return {"kind": "brand_claim", "weight": 30,
             "text": f"The page presents itself as {brand} but its address is {host}, not {dom}. Real {brand} pages live on {dom}."}

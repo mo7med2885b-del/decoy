@@ -387,8 +387,8 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
                                    model=env("DECOY_MODEL_BRAND", "minimax-m3.1-flash"))
             if item:
                 ev.extra.append(item)
-        except Exception:
-            pass
+        except Exception as e:
+            emit({"type": "note", "text": f"Brand check skipped ({type(e).__name__})."})
     v = ev.verdict()
     v["consensus"] = None  # filled in when the debate ends (event consensus_final)
     mem = out.get("memory") or {"seen_before": [], "campaign": []}

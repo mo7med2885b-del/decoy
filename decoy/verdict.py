@@ -236,6 +236,8 @@ class Evidence:
                                   "as data and ignored it.", "quote": self.hidden_orders[0]})
         if self.urgency:
             items.append({"kind": "pressure", "weight": 10, "text": "The page uses pressure (locked account, deadline) to rush you."})
+        if "PASSWORD" in self.asked and not self.official and any(i["kind"] in ("free_hosting", "new_domain", "raw_ip", "lookalike_domain") for i in items):
+            items.append({"kind": "password_on_risky_host", "weight": 20, "text": "The page asks for a password on an address that is free to publish on, brand new or look-alike."})
         if "CARD" in self.asked and any(i["kind"] == "lookalike_domain" for i in items):
             items.append({"kind": "card_on_lookalike", "weight": 15, "text": "A look-alike site asks for your card number."})
         chain = []
@@ -284,7 +286,7 @@ class Evidence:
         # weak reputation hints alone (a young domain, a redirect, a bot-check screen, a hidden text block) never make a link suspicious:
         # something about what the page DID or about its address must back them up
         backing = {"credentials_sent_elsewhere", "credentials_collected", "exfil_channel", "lookalike_domain", "cloaking", "bad_cert", "download", "internal_probe",
-                   "free_hosting", "shortener", "raw_ip", "provider_warning", "card_on_lookalike", "obfuscated_script", "telemetry_leak", "no_https", "parked_page", "brand_claim"}
+                   "free_hosting", "shortener", "raw_ip", "provider_warning", "card_on_lookalike", "obfuscated_script", "telemetry_leak", "no_https", "parked_page", "brand_claim", "password_on_risky_host"}
         if score >= 25 and not any(i["kind"] in backing and i["weight"] >= 12 for i in items):
             score = 24
         level = "DANGEROUS" if score >= 60 else "SUSPICIOUS" if score >= 25 else \
@@ -295,10 +297,11 @@ class Evidence:
         # the page is gone or empty, but the address itself looks like a throwaway scam address: Decoy cannot see anything to judge, and says so
         gone = re.compile(r"(?i)not found|isn.t live|no longer (available|exists)|doesn.t exist|suspended|expired|404|deleted|has been removed|this (site|page) can.t be reached|nothing here")
         empty = (gone.search(self.final_title or "") or any(i["kind"] in ("thin_page", "parked_page") for i in items) or self.max_text < 40) and not self.leaks and not self.official
-        if level == "NO THREAT FOUND" and empty and getattr(self, "address_score", 0) >= 20:
+        if level == "NO THREAT FOUND" and empty and getattr(self, "address_score", 0) >= 10:
             limits.append("The page is gone, empty or taken down, so there was nothing to judge, but the address itself looks like a throwaway scam address.")
             level = "NEEDS A LOOK"
-        if level == "NO THREAT FOUND" and not self.official and (blind or getattr(self, "address_score", 0) >= 60):
+        free = any(i["kind"] == "free_hosting" for i in items)
+        if level == "NO THREAT FOUND" and not self.official and (blind or getattr(self, "address_score", 0) >= 60 or (free and getattr(self, "address_score", 0) >= 20) or getattr(self, "address_score", 0) >= 30):
             level = "NEEDS A LOOK"
         items = sorted((i for i in items if i["weight"] > 0), key=lambda i: -i["weight"])
         got = [{"host": h, "data": sorted(k)} for h, k in self.leaks.items() if site(h) != start_site and not is_telemetry(h)]
