@@ -236,7 +236,7 @@ class Evidence:
                                   "as data and ignored it.", "quote": self.hidden_orders[0]})
         if self.urgency:
             items.append({"kind": "pressure", "weight": 10, "text": "The page uses pressure (locked account, deadline) to rush you."})
-        if "PASSWORD" in self.asked and not self.official and any(i["kind"] in ("free_hosting", "new_domain", "raw_ip", "lookalike_domain") for i in items):
+        if "PASSWORD" in self.asked and not self.official and any(i["kind"] in ("free_hosting", "new_domain", "raw_ip", "lookalike_domain", "no_https") for i in items):
             items.append({"kind": "password_on_risky_host", "weight": 20, "text": "The page asks for a password on an address that is free to publish on, brand new or look-alike."})
         if "CARD" in self.asked and any(i["kind"] == "lookalike_domain" for i in items):
             items.append({"kind": "card_on_lookalike", "weight": 15, "text": "A look-alike site asks for your card number."})

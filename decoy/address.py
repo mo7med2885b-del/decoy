@@ -87,6 +87,8 @@ def read(url: str) -> dict:
         add("double_slash", 6, "The path contains a double slash, sometimes used to confuse filters.")
     if u.port and u.port not in (80, 443):
         add("port", 8, f"It uses an unusual port ({u.port}).")
+    if re.search(r"(?<![\d.])\d{1,3}(?:\.\d{1,3}){3}(?![\d.])", u.query or ""):
+        add("ip_in_query", 15, "The link carries a bare IP address inside it, typical of redirect and tracking kits.")
     if len(re.findall(r"[A-Za-z0-9]{24,}", path)) >= 1:
         add("long_token", 6, "The path holds a long random-looking token.")
 
