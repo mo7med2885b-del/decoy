@@ -22,9 +22,15 @@ def claim(budget, url_host: str, title: str, lure_note: str, official: bool, mod
     if official or not (title or "").strip() or not llm.available():
         return None
     data = {"title": (title or "")[:140], "address": url_host, "analyst_note": (lure_note or "")[:300]}
-    try:
-        p = llm.parse_json(llm.chat(budget, with_guide(SYSTEM), "<DATA>\n" + json.dumps(data) + "\n</DATA>", max_tokens=300, model=model)) or {}
-    except Exception:
+    p = {}
+    for m in (model, "glm-5.3-flash", "qwen3.8-flash-next"):  # models sometimes answer empty or cut off: ask the next one instead of giving up
+        try:
+            p = llm.parse_json(llm.chat(budget, with_guide(SYSTEM), "<DATA>\n" + json.dumps(data) + "\n</DATA>", max_tokens=600, model=m)) or {}
+        except Exception:
+            p = {}
+        if "claims_brand" in p:
+            break
+    if "claims_brand" not in p:
         return None
     brand = re.sub(r"\s+", " ", re.sub(r"\(.*?\)", "", str(p.get("brand") or ""))).strip()[:40]
     doms = [str(d).strip().lower() for d in (p.get("official_domains") or [p.get("official_domain")]) if d][:6]
