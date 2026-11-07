@@ -2,7 +2,7 @@
 
 <h1 align="center">Decoy</h1>
 
-**Open a suspicious link without risking your machine.** Paste a link; three AI visitors open it in **sealed, throwaway browsers on Vultr**, type **fake** passwords and card numbers, and watch where the data goes. **Ten AI agents on different open models** read the evidence and argue it out in a chat room chaired by an orchestrator until they vote. You get a plain verdict with proof, the country the stolen data would reach, a block-list and a PDF report. Then every sandbox is destroyed.
+**Open a suspicious link without risking your machine.** Paste a link; three AI visitors open it in **sealed, throwaway browsers on Vultr**, type **fake** passwords and card numbers, and watch where the data goes. **Ten AI agents on five open models** read the evidence and argue it out in a chat room chaired by an orchestrator until they vote. You get a plain verdict with proof, the country the stolen data would reach, a block-list and a PDF report. Then every sandbox is destroyed.
 
 > **Live demo: https://45-32-155-174.sslip.io** (Vultr server, HTTPS, rate limited, daily budget cap). Test links are our own fake sites.
 
