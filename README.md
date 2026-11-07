@@ -28,7 +28,7 @@
 ## Measured, not only claimed
 The design follows published research: scam kits hide from scanners with user-agent, location and script checks (*PhishFarm*, IEEE S&P 2019), so three different visitors open every link; address features are long-studied signals (Marchal et al., ICDCS 2016, and the URL-feature literature); our addition is **behaviour in a sealed browser**.
 
-**First measurement** (`tools/benchmark.py`, reproducible): on 50 fresh links, 62% of the phishing links Decoy could assess were flagged (95% interval 43% to 79%) and 3 of 17 well-known sites were wrongly flagged (interval 6% to 41%) *before* later false-alarm fixes. A re-measurement after the fixes is being run; this section will be replaced with its numbers.
+**Measured** (`tools/benchmark.py`, reproducible; labelled phishing links from the OpenPhish community feed vs well-known sites; a "needs a look" verdict counts as right because it sends the link to a person). Four batches in a row before the last fixes (104 assessable links): 85.6% right, 0 of 50 well-known sites wrongly flagged as unsafe, 39 of 54 phishing links flagged. We read every miss: the agents often wrote "this page imitates a brand it does not own" but the score ignored it. The fix (a model proposes the claim, code verifies it before it adds weight) and a few score rules were then tested on a **fresh batch of 40 links**: 37 of 40 right (92.5%, 95% interval about 80% to 97%), 17 of 20 phishing links flagged, **0 of 20 well-known brand sites wrongly flagged**. Small sample, phishing pages that were already taken down are reported separately, and the fixes were designed from the earlier batches, so treat it as a first result, not a certification.
 
 ## Run it
 ```bash
