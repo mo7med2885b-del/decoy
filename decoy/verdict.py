@@ -301,7 +301,7 @@ class Evidence:
             limits.append("The page is gone, empty or taken down, so there was nothing to judge, but the address itself looks like a throwaway scam address.")
             level = "NEEDS A LOOK"
         free = any(i["kind"] == "free_hosting" for i in items)
-        if level == "NO THREAT FOUND" and not self.official and (blind or getattr(self, "address_score", 0) >= 60 or (free and (getattr(self, "address_score", 0) >= 20 or (empty and getattr(self, "address_score", 0) >= 0) or any(i["kind"] in ("sso_login", "login_form", "password_on_risky_host") for i in items))) or getattr(self, "address_score", 0) >= 30):
+        if level == "NO THREAT FOUND" and not self.official and (blind or getattr(self, "address_score", 0) >= 60 or (free and (getattr(self, "address_score", 0) >= 15 or (empty and getattr(self, "address_score", 0) >= 0) or any(i["kind"] in ("sso_login", "login_form", "password_on_risky_host") for i in items))) or getattr(self, "address_score", 0) >= 30):
             level = "NEEDS A LOOK"
         items = sorted((i for i in items if i["weight"] > 0), key=lambda i: -i["weight"])
         got = [{"host": h, "data": sorted(k)} for h, k in self.leaks.items() if site(h) != start_site and not is_telemetry(h)]
