@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from pathlib import Path
@@ -445,3 +446,16 @@ def test_every_agent_is_an_ai_model_that_words_the_facts_code_counted(monkeypatc
     w = swarm.ai_words("tls", ctx, ["Valid certificate from Test CA, 3 day(s) old."])
     assert w and w[1] == swarm.AI_MODELS["tls"] and seen[0] == swarm.AI_MODELS["tls"]
     assert swarm.ai_words("tls", {**ctx, "use_model": False}, ["x"]) is None
+
+
+def test_brand_claim_is_checked_by_code(monkeypatch):
+    from decoy import brand, llm
+    monkeypatch.setattr(llm, "available", lambda: True)
+    answer = {"claims_brand": True, "brand": "Western Union", "official_domain": "westernunion.com"}
+    monkeypatch.setattr(llm, "chat", lambda *a, **k: json.dumps(answer))
+    item = brand.claim(None, "westernunioncash.com", "Western Union Cash Pickup", "", False)
+    assert item and item["kind"] == "brand_claim" and item["weight"] == 20
+    assert brand.claim(None, "www.westernunion.com", "Western Union", "", False) is None  # the brand's own domain
+    assert brand.claim(None, "other.example", "Welcome", "", False) is None  # brand never appears in title or address
+    answer["claims_brand"] = False
+    assert brand.claim(None, "westernunioncash.com", "Western Union Cash Pickup", "", False) is None

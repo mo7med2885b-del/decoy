@@ -256,7 +256,7 @@ class Evidence:
                           "text": f"The page the visitors reached is a security service's own warning ('{self.final_title[:60]}'): a hosting or browser security provider already treats this site as phishing."})
         # a young domain on its own proves nothing (new real sites exist): it only counts fully when something else is wrong too
         corroborate = {"credentials_sent_elsewhere", "credentials_collected", "exfil_channel", "lookalike_domain", "cloaking", "bad_cert", "download", "internal_probe",
-                       "free_hosting", "shortener", "raw_ip", "provider_warning", "card_on_lookalike", "obfuscated_script"}
+                       "free_hosting", "shortener", "raw_ip", "provider_warning", "card_on_lookalike", "obfuscated_script", "brand_claim"}
         if not any(i["kind"] in corroborate and i.get("weight", 0) >= 12 for i in items):
             for i in items:
                 if i["kind"] == "new_domain" and i["weight"] > 12:
@@ -284,7 +284,7 @@ class Evidence:
         # weak reputation hints alone (a young domain, a redirect, a bot-check screen, a hidden text block) never make a link suspicious:
         # something about what the page DID or about its address must back them up
         backing = {"credentials_sent_elsewhere", "credentials_collected", "exfil_channel", "lookalike_domain", "cloaking", "bad_cert", "download", "internal_probe",
-                   "free_hosting", "shortener", "raw_ip", "provider_warning", "card_on_lookalike", "obfuscated_script", "telemetry_leak", "no_https", "parked_page"}
+                   "free_hosting", "shortener", "raw_ip", "provider_warning", "card_on_lookalike", "obfuscated_script", "telemetry_leak", "no_https", "parked_page", "brand_claim"}
         if score >= 25 and not any(i["kind"] in backing and i["weight"] >= 12 for i in items):
             score = 24
         level = "DANGEROUS" if score >= 60 else "SUSPICIOUS" if score >= 25 else \

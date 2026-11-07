@@ -23,6 +23,7 @@ from . import geo as geo_mod
 from . import reputation
 from . import investigate, store
 from . import address as address_mod
+from . import brand as brand_mod
 from . import debate as debate_mod
 from . import swarm as swarm_mod
 from .verdict import is_shared_backend, Evidence, cloaking, is_telemetry, site, template_summary
@@ -378,6 +379,16 @@ def run_scan(scan_id: str, url: str, emit, budget: Budget, sink: dict | None = N
 
     v = ev.verdict()
     ev.address_score = address_mod.read(url)["score"]
+    if use_model and not official:  # a model proposes "this page claims to be brand X"; code checks the claim before it counts
+        try:
+            bb = Budget()
+            bb.max_calls = 2
+            item = brand_mod.claim(bb, host, ev.final_title or ev.last_title or "", " ".join((agent_results.get("lure") or {}).get("findings", [])[:2]), official,
+                                   model=env("DECOY_MODEL_BRAND", "minimax-m3.1-flash"))
+            if item:
+                ev.extra.append(item)
+        except Exception:
+            pass
     v = ev.verdict()
     v["consensus"] = None  # filled in when the debate ends (event consensus_final)
     mem = out.get("memory") or {"seen_before": [], "campaign": []}
