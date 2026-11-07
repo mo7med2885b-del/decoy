@@ -10,7 +10,7 @@ import httpx
 FREE_HOSTS = ("ct.ws", "epizy.com", "infinityfreeapp.com", "rf.gd", "wuaze.com", "great-site.net", "42web.io", "lovestoblog.com", "000webhostapp.com",
               "pages.dev", "workers.dev", "web.app", "firebaseapp.com", "netlify.app", "vercel.app", "glitch.me", "herokuapp.com", "weebly.com",
               "wixsite.com", "blogspot.com", "ngrok-free.app", "ngrok.io", "trycloudflare.com", "duckdns.org", "myshopify.com", "webflow.io",
-              "godaddysites.com", "bolt.host", "framer.app", "framer.website", "github.io", "gitlab.io", "onrender.com", "surge.sh", "replit.app", "repl.co", "fly.dev", "pythonanywhere.com", "yolasite.com", "jimdosite.com", "site123.me", "carrd.co", "000webhost.com", "byethost7.com", "x10.mx")
+              "godaddysites.com", "bolt.host", "framer.app", "framer.website", "github.io", "gitlab.io", "onrender.com", "surge.sh", "replit.app", "repl.co", "fly.dev", "pythonanywhere.com", "yolasite.com", "jimdosite.com", "site123.me", "carrd.co", "000webhost.com", "byethost7.com", "x10.mx", "kesug.com", "flazio.online", "uncody.site", "weeblysite.com", "mystrikingly.com", "webnode.page", "wixstudio.io")
 PARKED = re.compile(r"(domain (name )?(is )?(for sale|parked|available)|this domain (is|may be) for sale|buy this domain|parked (free|domain)|account (has been )?suspended|"
                     r"website (is )?(coming soon|under construction)|coming soon|default web ?(server )?page|welcome to nginx|apache2? (ubuntu )?default|index of /|it works!)", re.I)
 INTERSTITIAL = re.compile(r"^(loading|just a moment|checking (your )?browser|redirecting|please wait|attention required|one moment)", re.I)

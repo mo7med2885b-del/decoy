@@ -280,7 +280,7 @@ class Evidence:
             limits.append("The page asked for an email or SMS verification code. Decoy never creates real accounts or reads real inboxes, so it stopped there; what the page does after sign-up was not seen.")
         for e in self.endpoints:
             for dom, label in EXFIL_CHANNELS:
-                if (e["host"] == dom or e["host"].endswith("." + dom)) and e.get("method") == "POST" and not any(i["kind"] == "exfil_channel" for i in items):
+                if (e["host"] == dom or e["host"].endswith("." + dom)) and e.get("method") == "POST" and not (site(self.last_host or "") == dom or (self.last_host or "").endswith("." + dom)) and not any(i["kind"] == "exfil_channel" for i in items):
                     items.append({"kind": "exfil_channel", "weight": 30, "text": f"The page sends data to {label} ({e['host']}). Phishing kits use these to collect what victims type."})
         score = min(100, sum(i["weight"] for i in items))
         # weak reputation hints alone (a young domain, a redirect, a bot-check screen, a hidden text block) never make a link suspicious:
@@ -301,7 +301,7 @@ class Evidence:
             limits.append("The page is gone, empty or taken down, so there was nothing to judge, but the address itself looks like a throwaway scam address.")
             level = "NEEDS A LOOK"
         free = any(i["kind"] == "free_hosting" for i in items)
-        if level == "NO THREAT FOUND" and not self.official and (blind or getattr(self, "address_score", 0) >= 60 or (free and getattr(self, "address_score", 0) >= 20) or getattr(self, "address_score", 0) >= 30):
+        if level == "NO THREAT FOUND" and not self.official and (blind or getattr(self, "address_score", 0) >= 60 or (free and (getattr(self, "address_score", 0) >= 20 or (empty and getattr(self, "address_score", 0) >= 0) or any(i["kind"] in ("sso_login", "login_form", "password_on_risky_host") for i in items))) or getattr(self, "address_score", 0) >= 30):
             level = "NEEDS A LOOK"
         items = sorted((i for i in items if i["weight"] > 0), key=lambda i: -i["weight"])
         got = [{"host": h, "data": sorted(k)} for h, k in self.leaks.items() if site(h) != start_site and not is_telemetry(h)]
