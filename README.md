@@ -89,7 +89,4 @@ Open http://localhost:8020 and paste `http://n0rthbank-login.test:8601/` (our fa
 
 **Built on Vultr:** Cloud Compute (control plane, queue, sandbox host), Serverless Inference (all agents), Firewall Groups (22, 80, 443 only), API (server, firewall, AI subscription).
 
-## Limits
-A clean result means nothing harmful was seen **during this visit**; it is not a guarantee. Chromium only, no attachment scanning, CAPTCHAs are not solved, the benchmark is small (read the intervals), and technique labels are suggestions for an analyst to confirm. A person decides.
-
 Tests: `python -m pytest tests -q` · MIT license.
