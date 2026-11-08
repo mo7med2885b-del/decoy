@@ -59,7 +59,7 @@ flowchart LR
 ## Measured, not only claimed
 The design follows published research: scam kits hide from scanners with user-agent, location and script checks (*PhishFarm*, IEEE S&P 2019), so three different visitors open every link; address features are long-studied signals (Marchal et al., ICDCS 2016, and the URL-feature literature); our addition is **behaviour in a sealed browser**.
 
-**Measured** (`tools/benchmark.py`, reproducible): labelled phishing links from the OpenPhish community feed against well-known sites and trusted organizations (governments, universities, nonprofits, banks, big tech), scanned live on the deployed app. **16 batches, 621 scans, November 4 to 8.** A scan counts as right when a phishing link is flagged (Suspicious, Dangerous or "needs a human look") or a safe site is not called Suspicious or Dangerous. Pages Decoy could not assess (errors, bot checks, pages already taken down) are left out and shown in the denominators.
+**Measured** (`tools/benchmark.py`, reproducible): labelled phishing links from the OpenPhish community feed against well-known sites and trusted organizations (governments, universities, nonprofits, banks, big tech), scanned live on the deployed app. **More than 300 links scanned live, November 4 to 8.** A scan counts as right when a phishing link is flagged (Suspicious, Dangerous or "needs a human look") or a safe site is not called Suspicious or Dangerous. Pages Decoy could not assess (errors, bot checks, pages already taken down) are left out and shown in the denominators.
 
 <p align="center"><img src="assets/screens/accuracy.png" alt="Decoy accuracy, batch by batch, from 57% to 94%" width="100%"></p>
 
