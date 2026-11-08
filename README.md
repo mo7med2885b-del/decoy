@@ -2,9 +2,19 @@
 
 <h1 align="center">Decoy</h1>
 
-**Open a suspicious link without risking your machine.** Paste a link; three AI visitors open it in **sealed, throwaway browsers on Vultr**, type **fake** passwords and card numbers, and watch where the data goes. **Ten AI agents on five open models** read the evidence and argue it out in a chat room chaired by an orchestrator until they vote. You get a plain verdict with proof, the country the stolen data would reach, a block-list and a PDF report. Then every sandbox is destroyed.
+**Open a suspicious link without risking your machine.** Paste a link and Decoy sends **a team of AI agents** to open it for you, inside **sealed, throwaway browsers on Vultr**. Three AI visitors (a laptop, a phone and a security bot) click through the page and type **fake** passwords and card numbers while Decoy records where the data goes. Then **ten AI agents on five different open models**, served by **Vultr Serverless Inference**, read the evidence, cross-examine each other and vote, chaired by an orchestrator. You get one plain verdict with proof, the country the stolen data would reach, a block-list and a PDF report. Then every sandbox is destroyed. Nothing ever touches your computer or your phone.
 
-> **Live demo: https://45-32-155-174.sslip.io** (Vultr server, HTTPS, rate limited, daily budget cap). Test links are our own fake sites.
+> **Try it live: https://45-32-155-174.sslip.io** (Vultr server, HTTPS, rate limited, daily budget cap). Paste any link, or use one of our own fake test sites.
+
+### How it works in 60 seconds
+1. **You paste a link** (from an email, WhatsApp, SMS or a QR picture).
+2. **Three AI visitors open it on Vultr**, each in its own sealed sandbox, and behave like real people: they click, scroll and type fake data.
+3. **Ten AI agents read the evidence**, each from its own angle (address, certificate, page behaviour, hidden scripts, where the data goes, the lure text, brand claims...). They post findings and **ask each other questions**.
+4. **An orchestrator cross-examines them and calls a vote.** The models argue; **code owns the score**, so the result is always counted, never invented.
+5. **You get the verdict in plain words, with proof**, and you make the final decision.
+
+### Why this is different
+Link scanners check lists of links that are already known to be bad, so a brand-new scam is invisible to them. Decoy **opens the link and watches what it really does**, using a whole team of AI agents instead of one model: ten different open models disagree, challenge each other and only then agree, which is how a hidden trick gets noticed. **Vultr is the whole platform**: the server and every sandbox run on Vultr Cloud Compute behind a Vultr firewall, and every one of the agents is a Vultr Serverless Inference call.
 
 ## Why this matters
 Links in messages are how many scams start, for people and for companies. All figures are **reported cases in the United States**, so the real numbers are higher.
@@ -17,7 +27,7 @@ Links in messages are how many scams start, for people and for companies. All fi
 - **Instant address read** (under a second): a transparent checklist of about 25 clues scores the link itself and gives three plain reasons, before any sandbox opens. A hint, never the verdict.
 - **Sealed browsers** (Docker + gVisor, read-only, no root, no secrets, private networks blocked twice). The first picture appears in 2 to 4 seconds because clean sandboxes are kept warm; each is used once, then destroyed.
 - **Three visitors** (laptop, phone, security bot) compare what they saw: a login form shown to people but a harmless page to the bot is cloaking. Bot checks are reported, never solved.
-- **Agent swarm, every agent an AI model:** ten agents (DeepSeek, Qwen, MiMo, MiniMax and GLM through Vultr) read the facts code counted for their area and write what they mean. They post findings, **ask each other pointed questions**, and the orchestrator (`glm-5.3`) joins in, asks the agents directly, proposes a statement and calls the vote. Every agent votes with its own model; objections trigger another round. Code never writes a question or a reply: it only validates, counts the votes and owns the score. Click any agent to read its model and system prompt.
+- **A team of ten AI agents, every one a real model call on Vultr Serverless Inference:** five open model families (DeepSeek, Qwen, MiMo, MiniMax and GLM) read the facts code counted for their area and write what they mean. They post findings, **ask each other pointed questions**, and the orchestrator (`glm-5.3`) joins in, asks the agents directly, proposes a statement and calls the vote. Every agent votes with its own model; objections trigger another round. Code never writes a question or a reply: it only validates, counts the votes and owns the score. Click any agent to read its model and system prompt.
 - **Where the data goes:** endpoint and country on a globe, a block-list (`.txt`, hosts file, JSON) and an abuse-report draft. Decoy never blocks or reports by itself.
 - **Inspector and AI summary:** every request, cookie, script and console line, plus a plain-words summary (facts counted by code).
 - **Normal or Advanced investigation:** Advanced adds the analyst team's incident report (indicators, suggested ATT&CK mapping). Every scan downloads as a **PDF with screenshots**.
