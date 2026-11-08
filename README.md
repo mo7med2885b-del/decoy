@@ -62,14 +62,23 @@ The design follows published research: scam kits hide from scanners with user-ag
 **Measured** (`tools/benchmark.py`, reproducible; labelled phishing links from the OpenPhish community feed vs well-known sites; a "needs a look" verdict counts as right because it sends the link to a person). Four batches in a row before the last fixes (104 assessable links): 85.6% right, 0 of 50 well-known sites wrongly flagged as unsafe, 39 of 54 phishing links flagged. We read every miss: the agents often wrote "this page imitates a brand it does not own" but the score ignored it. The fix (a model proposes the claim, code verifies it before it adds weight) and a few score rules were then tested on a **fresh batch of 40 links**: 37 of 40 right (92.5%, 95% interval about 80% to 97%), 17 of 20 phishing links flagged, **0 of 20 well-known brand sites wrongly flagged**. **The gap to 100% is not purely error.** In many cases Decoy does not guess: it says **"needs a human look"** and hands the link to a person. In this batch 3 of the 40 links got that answer, and we count it as right because the person is warned and decides. A plain yes/no tool would have had to guess on those links. So the gap to 100% is not all wrong verdicts, and the real risk is smaller than the number looks. The statistical margin of error is the 95% interval above (about 80% to 97%), wide because the sample is small. A clean result still means only that nothing harmful was seen during the visit. Progression so far: 85.6% (four batches), then 85% (before fixes), then **92.5%** (fresh batch after fixes); then two more fresh batches of 40 links: **93%** (28 of 30 assessable) and **97%** (30 of 31), about 95% together (58 of 61); a few safe sites could not be assessed because of bot checks or sandbox timeouts and are excluded. Then two batches on trusted sites and organizations (governments, universities, nonprofits): **90%** (26 of 29) and **97%** (30 of 31), about 93% together (56 of 60); no trusted site was called suspicious, and a few answered "needs a human look" because they showed a bot check. Then two more on trusted sites and organizations: **97%** (29 of 30) and **94%** (30 of 32), about 95% together (59 of 62). A last batch, run after the final fixes, is running and will be added here. Small sample, phishing pages that were already taken down are reported separately, and the fixes were designed from the earlier batches, so treat it as a first result, not a certification.
 
 ## Run it
+Needs Python 3.11+ and Docker. About 4 GB of RAM is comfortable.
 ```bash
+git clone https://github.com/mo7med2885b-del/decoy.git && cd decoy
+python -m venv .venv
+source .venv/bin/activate            # Windows: .venv\Scriptsctivate
 pip install -r requirements.txt
-python -m playwright install chromium
+cp .env.example .env                 # Windows: copy .env.example .env
 docker build -t decoy-sandbox:latest sandbox/
-python -m uvicorn demo_sites.server:app --port 8601   # our fake sites
-python -m uvicorn server:app --port 8020              # Decoy
+python -m uvicorn demo_sites.server:app --port 8601   # our fake sites, in one terminal
+python -m uvicorn server:app --port 8020              # Decoy, in a second terminal
 ```
-Open http://localhost:8020. Add a Vultr Serverless Inference key to `.env` for the AI agents (without a key only the plain checks run). `DECOY_SANDBOX=local` skips Docker for development only and is **not isolated**. Deploy: Ubuntu 24.04 (2 vCPU / 4 GB), `deploy/setup.sh`, `deploy/gvisor.sh`.
+Open http://localhost:8020 and paste `http://n0rthbank-login.test:8601/` (our fake bank page) to see a full scan.
+
+- **AI agents:** put a Vultr Serverless Inference key in `.env` (`VULTR_INFERENCE_KEY=`). Without a key Decoy still runs, with the plain rule-based checks only.
+- **No Docker (development only, NOT isolated, our own demo pages only):** `pip install playwright`, `python -m playwright install chromium`, and set `DECOY_SANDBOX=local` in `.env`. We tested this path from a clean clone (verdict Dangerous, PDF report downloads). The Docker path is the one that runs on the Vultr server.
+- **Deploy on Vultr:** Ubuntu 24.04 (2 vCPU / 4 GB), then `deploy/setup.sh` and `deploy/gvisor.sh`.
+- **Tests:** `python -m pytest tests -q`.
 
 **Built on Vultr:** Cloud Compute (control plane, queue, sandbox host), Serverless Inference (all agents), Firewall Groups (22, 80, 443 only), API (server, firewall, AI subscription).
 
