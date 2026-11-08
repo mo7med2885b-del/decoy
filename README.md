@@ -66,7 +66,7 @@ Needs Python 3.11+ and Docker. About 4 GB of RAM is comfortable.
 ```bash
 git clone https://github.com/mo7med2885b-del/decoy.git && cd decoy
 python -m venv .venv
-source .venv/bin/activate            # Windows: .venv\Scriptsctivate
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env                 # Windows: copy .env.example .env
 docker build -t decoy-sandbox:latest sandbox/
